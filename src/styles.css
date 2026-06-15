@@ -4832,7 +4832,7 @@ h3 {
 }
 
 .view-day .day-choice-panel {
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto auto 1fr auto;
   align-self: center;
   min-height: auto;
   transform: none;
@@ -4860,6 +4860,78 @@ h3 {
   font-size: clamp(19px, 1.16vw, 25px);
   line-height: 1.5;
   font-weight: 820;
+}
+
+.view-day .aac-response-panel {
+  display: grid;
+  gap: 12px;
+  padding: clamp(14px, 1.2vw, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.54);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 12px 26px rgba(62, 54, 45, 0.07);
+}
+
+.view-day .aac-panel-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.view-day .aac-panel-heading span {
+  color: color-mix(in srgb, var(--theme-text) 74%, #fff);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.view-day .aac-panel-heading p {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: clamp(15px, 0.9vw, 17px);
+  font-weight: 760;
+  line-height: 1.42;
+}
+
+.view-day .aac-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.view-day .aac-option-grid button {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.46);
+  color: var(--theme-text);
+  box-shadow: 0 10px 20px rgba(62, 54, 45, 0.07);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.view-day .aac-option-grid button:hover,
+.view-day .aac-option-grid button:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.view-day .aac-option-grid button.active {
+  color: #fff;
+  border-color: transparent;
+  background: var(--theme-accent);
+  box-shadow: 0 16px 28px color-mix(in srgb, var(--theme-accent) 34%, transparent);
+}
+
+.view-day .coach-reply {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--theme-accent) 12%, rgba(255, 255, 255, 0.7));
+  color: var(--theme-text);
+  font-size: clamp(15px, 0.92vw, 17px);
+  font-weight: 820;
+  line-height: 1.42;
 }
 
 .view-day .scene-option-list {
@@ -4940,15 +5012,20 @@ h3 {
     grid-row: 1;
   }
 
-  .view-day .scene-option-list {
+  .view-day .aac-response-panel {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .view-day .scene-option-list {
+    grid-column: 1 / -1;
+    grid-row: 3;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .view-day .day-choice-panel .support-bar {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 4;
   }
 }
 
@@ -5036,6 +5113,30 @@ h3 {
     line-height: 1.42;
   }
 
+  .view-day .aac-response-panel {
+    padding: 12px;
+    border-radius: 22px;
+  }
+
+  .view-day .aac-panel-heading span {
+    font-size: 12px;
+  }
+
+  .view-day .aac-panel-heading p,
+  .view-day .coach-reply {
+    font-size: 14px;
+  }
+
+  .view-day .aac-option-grid {
+    gap: 8px;
+  }
+
+  .view-day .aac-option-grid button {
+    min-height: 48px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
   .view-day .scene-option-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
@@ -5103,6 +5204,10 @@ h3 {
   }
 
   .view-day .scene-option-list {
+    grid-template-columns: 1fr;
+  }
+
+  .view-day .aac-option-grid {
     grid-template-columns: 1fr;
   }
 

@@ -115,13 +115,15 @@ async function run() {
 
     await page.getByRole('button', { name: /하루 체험하기/ }).click();
     await screenshot(page, '1920-session.png');
-    await page.getByText(/이든이 컵과 도구를 먼저/).waitFor();
+    await page.getByText(/이든이 카페 일을 시작하기 전에/).waitFor();
     await page.getByRole('button', { name: /손님 맞이/ }).click();
-    await page.getByText(/이든이 손님을 보고/).waitFor();
+    await page.getByText(/이든이 카페에 온 손님을 보고/).waitFor();
     const selectedSceneSrc = await page.locator('.scene-focus-image').getAttribute('src');
     if (!selectedSceneSrc?.includes('scene-barista-02-greet-eiden-v2.png')) {
       throw new Error(`Scene image did not switch with the selected step: ${selectedSceneSrc}`);
     }
+    await page.getByRole('button', { name: /^손님$/ }).click();
+    await page.getByText(/손님에 함께 집중해보겠습니다/).waitFor();
     await page.getByRole('button', { name: /이든 설명 듣기/ }).click();
     await wait(350);
     if (!(await page.locator('.day-screen').isVisible())) {
@@ -151,7 +153,7 @@ async function run() {
     await page.getByRole('button', { name: /교사용으로 보기/ }).click();
     await page.locator('.teacher-layout').waitFor();
     await page.locator('.review-row').first().click();
-    await page.getByRole('button', { name: /이해 확인/ }).click();
+    await page.getByRole('button', { name: '이해 확인', exact: true }).click();
     await page.locator('.teacher-drawer').waitFor();
     await screenshot(page, '1920-teacher-drawer.png');
 

@@ -1,4 +1,4 @@
-import type { AppState, CoachGateway, ExplorationRecord, JobProfile, SessionRepository, SupportActionId, TeacherLog } from './domain';
+import type { AacOption, AppState, CoachGateway, ExplorationRecord, JobProfile, SessionRepository, SupportActionId, TeacherLog } from './domain';
 
 const storageKey = 'kkumideun-findjob-frontend-session-v1';
 
@@ -40,6 +40,25 @@ export const mockCoachGateway: CoachGateway = {
       signal,
       supportLevel,
       summary: `${actionLabel}을 선택했습니다. ${job.title} 활동을 같은 장면에서 다시 지원합니다.`,
+      status: '확인 대기'
+    };
+  },
+
+  createAacLog(option: AacOption, state: AppState, job: JobProfile) {
+    if (option.supportAction === 'replay') return null;
+
+    const scene = job.scenes.find((item) => item.id === state.selectedSceneId) ?? job.scenes[state.currentSceneIndex] ?? job.scenes[0];
+    const isSupportChoice = option.type === 'support';
+
+    return {
+      id: nowId('aac'),
+      createdAt: new Date().toISOString(),
+      studentName: '홍길동 학생',
+      jobTitle: job.title,
+      stageLabel: scene.label,
+      signal: isSupportChoice ? '모름/불확실' : '직업 이해',
+      supportLevel: 'AAC 지원',
+      summary: `AAC 버튼 "${option.label}"을 선택했습니다. ${job.title} ${scene.label.replace(/^\d+\s*/, '')} 장면에서 표현을 이어갑니다.`,
       status: '확인 대기'
     };
   }

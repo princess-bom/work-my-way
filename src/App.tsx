@@ -26,13 +26,13 @@ import {
 import { createRecord, localSessionRepository, mockCoachGateway } from './adapters';
 import { appAssets, getJobVisual, getSceneImage, jobEidenWelcome, pathLandmarks, pathMarkers } from './assets';
 import { requestAvatarSpeech } from './avatarVoiceClient';
-import { getJob, getSceneNarration, initialState, jobs, stages } from './data';
-import type { AppState, ExplorationRecord, JobId, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
+import { createCoachReply, getJob, getSceneAacOptions, getSceneNarration, getSceneObservationPrompt, initialState, jobs, stages } from './data';
+import type { AacOption, AppState, ExplorationRecord, JobId, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
 import { JobWorldCanvas } from './JobWorldCanvas';
 import { LandingHero } from './LandingHero';
 import { getJobTheme } from './theme';
 
-const bannedCopy = ['점수', '등급', '적합률', '정답률', '실패', '오답'];
+const bannedCopy = ['점수', '등급', '적합률', '정답률', '정답', '틀렸', '잘했', '실패', '오답'];
 
 const stageIndexByView: Record<ViewId, number> = {
   landing: 0,
@@ -220,6 +220,9 @@ export function App() {
       selectedJobId: jobId,
       selectedSceneId: nextJob.scenes[0].id,
       currentSceneIndex: 0,
+      selectedAacOptionId: null,
+      coachReply: null,
+      sceneTurnCount: 0,
       replaying: false,
       resting: false
     });
@@ -241,6 +244,29 @@ export function App() {
     }));
 
     if (action === 'replay') {
+      void speakText(getSceneNarration(currentScene));
+      window.setTimeout(() => setState((current) => ({ ...current, replaying: false })), 2200);
+    }
+  }
+
+  function chooseAacOption(option: AacOption) {
+    const reply = createCoachReply(currentScene, option);
+    const supportLog = option.supportAction ? mockCoachGateway.createSupportLog(option.supportAction, state, job) : null;
+    const aacLog = option.supportAction ? null : mockCoachGateway.createAacLog(option, state, job);
+    const log = supportLog ?? aacLog;
+
+    setState((current) => ({
+      ...current,
+      selectedAacOptionId: option.id,
+      coachReply: reply,
+      sceneTurnCount: Math.min(current.sceneTurnCount + 1, 3),
+      replaying: option.supportAction === 'replay',
+      visualSupportOpen: option.supportAction === 'visual' ? true : current.visualSupportOpen,
+      resting: option.supportAction === 'pause',
+      teacherLogs: log ? [...current.teacherLogs, log] : current.teacherLogs
+    }));
+
+    if (option.supportAction === 'replay') {
       void speakText(getSceneNarration(currentScene));
       window.setTimeout(() => setState((current) => ({ ...current, replaying: false })), 2200);
     }
@@ -322,9 +348,22 @@ export function App() {
             job={job}
             sceneIndex={state.currentSceneIndex}
             selectedSceneId={state.selectedSceneId}
+            selectedAacOptionId={state.selectedAacOptionId}
+            coachReply={state.coachReply}
             replaying={state.replaying}
             resting={state.resting}
-            onScene={(index, id) => update({ currentSceneIndex: index, selectedSceneId: id, replaying: false, resting: false })}
+            onScene={(index, id) =>
+              update({
+                currentSceneIndex: index,
+                selectedSceneId: id,
+                selectedAacOptionId: null,
+                coachReply: null,
+                sceneTurnCount: 0,
+                replaying: false,
+                resting: false
+              })
+            }
+            onAacOption={chooseAacOption}
             onSupport={supportAction}
             onNext={() => go('summary')}
           />
@@ -554,18 +593,24 @@ function DayExperience({
   job,
   sceneIndex,
   selectedSceneId,
+  selectedAacOptionId,
+  coachReply,
   replaying,
   resting,
   onScene,
+  onAacOption,
   onSupport,
   onNext
 }: {
   job: ReturnType<typeof getJob>;
   sceneIndex: number;
   selectedSceneId: string;
+  selectedAacOptionId: string | null;
+  coachReply: string | null;
   replaying: boolean;
   resting: boolean;
   onScene: (index: number, id: string) => void;
+  onAacOption: (option: AacOption) => void;
   onSupport: (action: SupportActionId) => void;
   onNext: () => void;
 }) {
@@ -575,6 +620,8 @@ function DayExperience({
   const sceneNumber = String(activeSceneIndex + 1).padStart(2, '0');
   const sceneImage = getSceneImage(job.id, scene.id);
   const narration = getSceneNarration(scene);
+  const observationPrompt = getSceneObservationPrompt(scene);
+  const aacOptions = getSceneAacOptions(scene);
   return (
     <main className="day-screen">
       <section className="day-stage">
@@ -599,11 +646,34 @@ function DayExperience({
               </div>
             </div>
           </article>
-          <aside className="day-choice-panel" aria-label="이든 질문과 장면 선택">
+          <aside className="day-choice-panel" aria-label="이든 설명과 장면 선택">
             <img className="day-eiden" src={jobEidenWelcome[job.id]} alt={`${job.title} 복장을 한 이든`} draggable={false} />
             <div className="choice-question">
               <span>{replaying ? '설명 듣는 중' : resting ? '쉬는 중' : '이든의 설명'}</span>
               <p>{resting ? '잠시 쉬어도 괜찮아요. 준비되면 선생님과 함께 이어가요.' : narration}</p>
+            </div>
+            <div className="aac-response-panel">
+              <div className="aac-panel-heading">
+                <span>버튼으로 표현하기</span>
+                <p>{observationPrompt}</p>
+              </div>
+              <div className="aac-option-grid" aria-label="AAC 표현 버튼">
+                {aacOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    className={option.id === selectedAacOptionId ? 'active' : ''}
+                    type="button"
+                    onClick={() => onAacOption(option)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {coachReply && (
+                <p className="coach-reply" role="status" aria-live="polite">
+                  {coachReply}
+                </p>
+              )}
             </div>
             <div className="scene-option-list">
               {job.scenes.map((item, index) => (

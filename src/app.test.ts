@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createRecord, mockCoachGateway } from './adapters';
 import { getIntroContent, getNextIntroJobId, hasBannedCopy } from './App';
 import { getSceneImage } from './assets';
-import { getJob, getSceneNarration, initialState, jobs } from './data';
+import { createCoachReply, getJob, getSceneAacOptions, getSceneNarration, getSceneObservationPrompt, initialState, jobs } from './data';
 
 describe('student exploration copy and records', () => {
   it('flags teacher-dashboard ranking or scoring copy as banned', () => {
     expect(hasBannedCopy('학생 점수와 적합률을 보여줍니다')).toBe(true);
+    expect(hasBannedCopy('정답을 잘했어요')).toBe(true);
     expect(hasBannedCopy('학생의 표현을 다음 수업 지원으로 연결합니다')).toBe(false);
   });
 
@@ -64,7 +65,32 @@ describe('student exploration copy and records', () => {
 
     expect(getSceneNarration(scene)).toContain('이든');
     expect(getSceneNarration(scene)).not.toBe(scene.prompt);
+    expect(getSceneNarration(scene)).not.toContain('?');
+    expect(getSceneNarration(scene)).not.toContain('무엇일까요');
     expect(hasBannedCopy(getSceneNarration(scene))).toBe(false);
+  });
+
+  it('offers AAC choices as participation rather than scoring answers', () => {
+    const scene = getJob('barista-aide').scenes[0];
+    const options = getSceneAacOptions(scene);
+
+    expect(getSceneObservationPrompt(scene)).toContain('버튼');
+    expect(options.map((option) => option.label)).toEqual(expect.arrayContaining(['컵', '도구', '잘 모르겠어요', '다시 듣기', '선생님 도움']));
+    expect(options.every((option) => !hasBannedCopy(`${option.label} ${option.value}`))).toBe(true);
+  });
+
+  it('creates respectful Eiden follow-up copy from AAC participation', () => {
+    const scene = getJob('library-aide').scenes[1];
+    const option = getSceneAacOptions(scene).find((item) => item.id === 'bookshelf');
+
+    expect(option).toBeDefined();
+    const reply = createCoachReply(scene, option!);
+
+    expect(reply).toContain('함께');
+    expect(reply).toContain('습니다');
+    expect(reply).not.toContain('정답');
+    expect(reply).not.toContain('틀렸');
+    expect(hasBannedCopy(reply)).toBe(false);
   });
 
   it('turns student support actions into teacher review logs without scores', () => {
