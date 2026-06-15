@@ -4832,44 +4832,54 @@ h3 {
 }
 
 .view-day .day-choice-panel {
-  grid-template-rows: auto auto auto 1fr auto;
+  grid-template-rows: auto auto auto auto;
   align-self: center;
   min-height: auto;
   transform: none;
-  gap: 16px;
-  padding: clamp(20px, 2vw, 30px);
+  gap: 12px;
+  padding: clamp(16px, 1.55vw, 24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 34px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 28px 58px rgba(62, 54, 45, 0.11);
+}
+
+.view-day .eiden-guide {
+  display: grid;
+  grid-template-columns: minmax(86px, 0.26fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
 }
 
 .view-day .day-eiden {
-  width: min(210px, 58%);
-  height: clamp(160px, 19vh, 220px);
+  width: min(132px, 100%);
+  height: clamp(118px, 15vh, 160px);
   object-fit: contain;
 }
 
 .view-day .choice-question {
   margin: 0;
-  padding: clamp(16px, 1.35vw, 22px);
+  padding: clamp(14px, 1.1vw, 19px);
   border: 1px solid rgba(255, 255, 255, 0.58);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.44);
-  box-shadow: 0 16px 28px rgba(62, 54, 45, 0.08);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow: none;
 }
 
 .view-day .choice-question p {
-  font-size: clamp(19px, 1.16vw, 25px);
+  font-size: clamp(18px, 1.03vw, 22px);
   line-height: 1.5;
   font-weight: 820;
 }
 
 .view-day .aac-response-panel {
   display: grid;
-  gap: 12px;
-  padding: clamp(14px, 1.2vw, 18px);
+  gap: 10px;
+  padding: clamp(12px, 1vw, 16px);
   border: 1px solid rgba(255, 255, 255, 0.54);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 12px 26px rgba(62, 54, 45, 0.07);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
 }
 
 .view-day .aac-panel-heading {
@@ -4886,26 +4896,26 @@ h3 {
 .view-day .aac-panel-heading p {
   margin: 0;
   color: var(--theme-text);
-  font-size: clamp(15px, 0.9vw, 17px);
+  font-size: clamp(14px, 0.82vw, 16px);
   font-weight: 760;
   line-height: 1.42;
 }
 
 .view-day .aac-option-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .view-day .aac-option-grid button {
-  min-height: 52px;
-  padding: 0 14px;
+  min-height: 50px;
+  padding: 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.68);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.46);
   color: var(--theme-text);
-  box-shadow: 0 10px 20px rgba(62, 54, 45, 0.07);
-  font-size: 15px;
+  box-shadow: none;
+  font-size: 14px;
   font-weight: 900;
 }
 
@@ -4925,8 +4935,8 @@ h3 {
 
 .view-day .coach-reply {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 20px;
+  padding: 11px 13px;
+  border-radius: 18px;
   background: color-mix(in srgb, var(--theme-accent) 12%, rgba(255, 255, 255, 0.7));
   color: var(--theme-text);
   font-size: clamp(15px, 0.92vw, 17px);
@@ -4936,20 +4946,45 @@ h3 {
 
 .view-day .scene-option-list {
   align-content: start;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .view-day .scene-option-list button {
-  grid-template-columns: 56px 34px minmax(0, 1fr);
-  min-height: 78px;
-  padding: 9px 13px 9px 10px;
+  position: relative;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 9px 7px 10px;
+  text-align: center;
 }
 
 .view-day .scene-option-list img {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+}
+
+.view-day .scene-option-list span {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  min-width: 27px;
+  height: 27px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--theme-accent);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.view-day .scene-option-list strong {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  word-break: keep-all;
 }
 
 .view-day .day-choice-panel .support-bar {
@@ -4958,17 +4993,23 @@ h3 {
   bottom: auto;
   z-index: auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   margin: 0;
   transform: none;
 }
 
 .view-day .day-choice-panel .support-bar button {
-  min-height: 56px;
-  padding: 0 12px;
-  font-size: 15px;
+  min-height: 50px;
+  padding: 0 10px;
+  font-size: 14px;
   line-height: 1.2;
+  box-shadow: none;
+}
+
+.view-day .day-choice-panel .support-bar button svg {
+  width: 19px;
+  height: 19px;
 }
 
 .support-visual-image {
@@ -4995,16 +5036,20 @@ h3 {
   }
 
   .view-day .day-choice-panel {
-    grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
     align-items: center;
+  }
+
+  .view-day .eiden-guide {
+    grid-template-columns: minmax(118px, 0.22fr) minmax(0, 1fr);
   }
 
   .view-day .day-eiden {
     grid-column: 1;
     grid-row: 1;
-    width: min(170px, 100%);
-    height: 180px;
+    width: min(146px, 100%);
+    height: 166px;
   }
 
   .view-day .choice-question {
@@ -5014,13 +5059,13 @@ h3 {
 
   .view-day .aac-response-panel {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 3;
   }
 
   .view-day .scene-option-list {
     grid-column: 1 / -1;
-    grid-row: 3;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-row: 2;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .view-day .day-choice-panel .support-bar {
@@ -5087,15 +5132,20 @@ h3 {
   }
 
   .view-day .day-choice-panel {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 10px;
     padding: 12px;
     border-radius: 28px;
   }
 
+  .view-day .eiden-guide {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+  }
+
   .view-day .day-eiden {
-    width: 76px;
-    height: 96px;
+    width: 72px;
+    height: 92px;
   }
 
   .view-day .choice-question {
@@ -5143,10 +5193,12 @@ h3 {
   }
 
   .view-day .scene-option-list button {
-    grid-template-columns: 44px minmax(0, 1fr);
-    min-height: 62px;
+    grid-template-columns: 46px minmax(0, 1fr);
+    justify-items: start;
+    min-height: 64px;
     padding: 8px 10px 8px 8px;
     border-radius: 20px;
+    text-align: left;
   }
 
   .view-day .scene-option-list img {
@@ -5204,15 +5256,15 @@ h3 {
   }
 
   .view-day .scene-option-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .view-day .aac-option-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .view-day .day-choice-panel .support-bar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .view-day .day-choice-panel .support-bar button {

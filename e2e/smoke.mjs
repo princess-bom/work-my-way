@@ -124,7 +124,7 @@ async function run() {
     }
     await page.getByRole('button', { name: /^손님$/ }).click();
     await page.getByText(/손님에 함께 집중해보겠습니다/).waitFor();
-    await page.getByRole('button', { name: /이든 설명 듣기/ }).click();
+    await page.getByRole('button', { name: /설명 듣기/ }).click();
     await wait(350);
     if (!(await page.locator('.day-screen').isVisible())) {
       throw new Error('Eiden narration button changed the current page');

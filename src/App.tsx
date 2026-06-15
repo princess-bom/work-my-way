@@ -647,17 +647,33 @@ function DayExperience({
             </div>
           </article>
           <aside className="day-choice-panel" aria-label="이든 설명과 장면 선택">
-            <img className="day-eiden" src={jobEidenWelcome[job.id]} alt={`${job.title} 복장을 한 이든`} draggable={false} />
-            <div className="choice-question">
-              <span>{replaying ? '설명 듣는 중' : resting ? '쉬는 중' : '이든의 설명'}</span>
-              <p>{resting ? '잠시 쉬어도 괜찮아요. 준비되면 선생님과 함께 이어가요.' : narration}</p>
+            <div className="eiden-guide">
+              <img className="day-eiden" src={jobEidenWelcome[job.id]} alt={`${job.title} 복장을 한 이든`} draggable={false} />
+              <div className="choice-question">
+                <span>{replaying ? '설명 듣는 중' : resting ? '쉬는 중' : '이든의 설명'}</span>
+                <p>{resting ? '잠시 쉬어도 괜찮습니다. 준비되면 선생님과 함께 이어가겠습니다.' : narration}</p>
+              </div>
+            </div>
+            <div className="scene-option-list" aria-label="장면 선택">
+              {job.scenes.map((item, index) => (
+                <button
+                  key={item.id}
+                  className={item.id === selectedSceneId ? 'active' : ''}
+                  type="button"
+                  onClick={() => onScene(index, item.id)}
+                >
+                  <img src={getSceneImage(job.id, item.id)} alt="" draggable={false} />
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{item.label.replace(/^\d+\s*/, '')}</strong>
+                </button>
+              ))}
             </div>
             <div className="aac-response-panel">
               <div className="aac-panel-heading">
-                <span>버튼으로 표현하기</span>
-                <p>{observationPrompt}</p>
+                <span>표현 버튼</span>
+                <p>말하지 않아도 괜찮습니다. 보이는 것을 하나 골라도 괜찮습니다.</p>
               </div>
-              <div className="aac-option-grid" aria-label="AAC 표현 버튼">
+              <div className="aac-option-grid" aria-label={observationPrompt}>
                 {aacOptions.map((option) => (
                   <button
                     key={option.id}
@@ -675,20 +691,6 @@ function DayExperience({
                 </p>
               )}
             </div>
-            <div className="scene-option-list">
-              {job.scenes.map((item, index) => (
-                <button
-                  key={item.id}
-                  className={item.id === selectedSceneId ? 'active' : ''}
-                  type="button"
-                  onClick={() => onScene(index, item.id)}
-                >
-                  <img src={getSceneImage(job.id, item.id)} alt="" draggable={false} />
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <strong>{item.label.replace(/^\d+\s*/, '')}</strong>
-                </button>
-              ))}
-            </div>
             <SupportActionBar replaying={replaying} onSupport={onSupport} />
           </aside>
         </div>
@@ -702,7 +704,7 @@ function SupportActionBar({ replaying, onSupport }: { replaying: boolean; onSupp
     <nav className="support-bar" aria-label="학생 지원 행동">
       <button type="button" className={replaying ? 'active' : ''} onClick={() => onSupport('replay')}>
         <Volume2 size={21} />
-        이든 설명 듣기
+        설명 듣기
       </button>
       <button type="button" onClick={() => onSupport('visual')}>
         <Eye size={21} />
