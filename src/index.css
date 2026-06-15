@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body:has(.landing-hero) {
+  background: #f2e4d6;
+}
+
+.app.view-landing:has(.landing-hero) {
+  padding: 0;
+  background: transparent;
+}
+
+.view-landing .landing-hero {
+  min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero *,
+  .landing-hero {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+     transform: translateY(-1.5px) scale(1.08);
+  }
+}
+
+.animate-float-gentle {
+  animation: float-gentle 3s ease-in-out infinite;
+  display: inline-block;
+}
