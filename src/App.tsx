@@ -671,7 +671,7 @@ function DayExperience({
             <div className="aac-response-panel">
               <div className="aac-panel-heading">
                 <span>표현 버튼</span>
-                <p>말하지 않아도 괜찮습니다. 보이는 것을 하나 골라도 괜찮습니다.</p>
+                <p>말로 하지 않아도 됩니다. 보이는 것을 하나 골라 주세요.</p>
               </div>
               <div className="aac-option-grid" aria-label={observationPrompt}>
                 {aacOptions.map((option) => (
@@ -692,6 +692,10 @@ function DayExperience({
               )}
             </div>
             <SupportActionBar replaying={replaying} onSupport={onSupport} />
+            <button className="primary-cta compact day-next-mobile" type="button" onClick={onNext}>
+              정리하기
+              <ChevronRight size={18} />
+            </button>
           </aside>
         </div>
       </section>

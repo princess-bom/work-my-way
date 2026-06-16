@@ -4765,6 +4765,10 @@ h3 {
   white-space: nowrap;
 }
 
+.view-day .day-next-mobile {
+  display: none;
+}
+
 .view-day .day-layout {
   grid-template-columns: minmax(0, 1.24fr) minmax(360px, 0.56fr);
   align-items: center;
@@ -5093,9 +5097,16 @@ h3 {
   }
 
   .view-day .day-heading .primary-cta.compact {
-    min-height: 50px;
-    padding: 0 16px;
-    font-size: 16px;
+    display: none;
+  }
+
+  .view-day .day-choice-panel .day-next-mobile {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 58px;
+    margin-top: 2px;
+    font-size: 17px;
   }
 
   .view-day .day-layout {
@@ -5270,5 +5281,15 @@ h3 {
   .view-day .day-choice-panel .support-bar button {
     gap: 6px;
     font-size: 13px;
+  }
+
+  .view-day .aac-option-grid button {
+    padding: 0 6px;
+    font-size: 13px;
+    word-break: keep-all;
+  }
+
+  .view-day .scene-option-list strong {
+    font-size: 14px;
   }
 }
