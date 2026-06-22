@@ -10,8 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Coffee,
+  Copy,
   ClipboardList,
   Clock3,
+  ExternalLink,
   Filter,
   Headphones,
   HeartHandshake,
@@ -99,6 +101,11 @@ type AppHistoryState = {
   kkumideunView?: ViewId;
 };
 
+type StudentLaunchPrefill = {
+  classId: string;
+  studentCode: string;
+};
+
 type TeacherDashboardPageId = 'records' | 'students';
 type ViteEnv = {
   MODE?: string;
@@ -116,6 +123,32 @@ export const teacherDashboardNavigation: Array<{
 
 function getViteEnv(): ViteEnv {
   return (import.meta as ImportMeta & { env?: ViteEnv }).env ?? {};
+}
+
+function trimLaunchQueryValue(value: string | null) {
+  return value?.trim().slice(0, 80) ?? '';
+}
+
+export function getStudentLaunchPrefillFromSearch(search: string): StudentLaunchPrefill | null {
+  const params = new URLSearchParams(search);
+  if (params.get('entry') !== 'student') return null;
+  const classId = trimLaunchQueryValue(params.get('classId'));
+  const studentCode = trimLaunchQueryValue(params.get('studentCode'));
+  if (!classId || !studentCode) return null;
+  return { classId, studentCode };
+}
+
+function getStudentLaunchPrefillFromLocation(): StudentLaunchPrefill | null {
+  if (typeof window === 'undefined') return null;
+  return getStudentLaunchPrefillFromSearch(window.location.search);
+}
+
+export function buildStudentEntryUrl(origin: string, pathname: string, input: StudentLaunchPrefill) {
+  const url = new URL(pathname || '/', origin);
+  url.searchParams.set('entry', 'student');
+  url.searchParams.set('classId', input.classId);
+  url.searchParams.set('studentCode', input.studentCode);
+  return url.toString();
 }
 
 export function getAppHistoryView(value: unknown): ViewId | null {
@@ -146,25 +179,24 @@ function writeHistoryView(view: ViewId, mode: 'push' | 'replace') {
   window.history.pushState(historyState, '', window.location.href);
 }
 
-export function mergePersistedStateForInitialLoad(loaded: Partial<AppState> | null): AppState {
-  if (!loaded) return initialState;
+export function mergePersistedStateForInitialLoad(loaded: Partial<AppState> | null, launchPrefill: StudentLaunchPrefill | null = null): AppState {
   return {
     ...initialState,
-    ...loaded,
-    view: 'landing',
-    selectedJobId: loaded.selectedJobId ?? 'barista-aide',
+    ...(loaded ?? {}),
+    view: launchPrefill ? 'launch' : 'landing',
+    selectedJobId: loaded?.selectedJobId ?? 'barista-aide',
     studentSession: undefined,
     teacherEvidenceTarget: undefined,
     visualSupportOpen: false,
     resting: false,
     replaying: false,
-    teacherLogs: loaded.teacherLogs?.length ? loaded.teacherLogs : initialState.teacherLogs,
-    records: sortRecordsByLatest(loaded.records ?? [])
+    teacherLogs: loaded?.teacherLogs?.length ? loaded.teacherLogs : initialState.teacherLogs,
+    records: sortRecordsByLatest(loaded?.records ?? [])
   };
 }
 
-function mergeLoadedState(): AppState {
-  return mergePersistedStateForInitialLoad(localSessionRepository.load());
+function mergeLoadedState(launchPrefill: StudentLaunchPrefill | null): AppState {
+  return mergePersistedStateForInitialLoad(localSessionRepository.load(), launchPrefill);
 }
 
 function formatTime(value: string) {
@@ -429,7 +461,8 @@ function scrollToPageTop() {
 }
 
 export function App() {
-  const [state, setState] = useState<AppState>(() => mergeLoadedState());
+  const [studentLaunchPrefill] = useState<StudentLaunchPrefill | null>(() => getStudentLaunchPrefillFromLocation());
+  const [state, setState] = useState<AppState>(() => mergeLoadedState(studentLaunchPrefill));
   const [summaryJobId, setSummaryJobId] = useState<JobId>(sourceAlignJobId);
   const [summarySceneId, setSummarySceneId] = useState<string>(getSourceAlignmentScene().id);
   const [studentLaunchMessage, setStudentLaunchMessage] = useState<string | null>(null);
@@ -731,6 +764,7 @@ export function App() {
             job={job}
             message={studentLaunchMessage}
             allowDemoFallback={canUseLocalDemoFallback()}
+            prefill={studentLaunchPrefill}
             onBack={() => go('landing')}
             onResolve={resolveStudentAndEnterIntro}
             onDemo={startLocalDemoStudentFlow}
@@ -926,6 +960,7 @@ function StudentLaunchEntry({
   job,
   message,
   allowDemoFallback,
+  prefill,
   onBack,
   onResolve,
   onDemo
@@ -933,23 +968,34 @@ function StudentLaunchEntry({
   job: ReturnType<typeof getJob>;
   message: string | null;
   allowDemoFallback: boolean;
+  prefill: StudentLaunchPrefill | null;
   onBack: () => void;
   onResolve: (input: StudentLaunchInput) => Promise<void>;
   onDemo: () => void;
 }) {
   const [form, setForm] = useState<StudentLaunchInput>({
-    classId: '',
-    studentCode: '',
+    classId: prefill?.classId ?? '',
+    studentCode: prefill?.studentCode ?? '',
     launchCode: ''
   });
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(message);
   const showDemoFallback = allowDemoFallback && status === 'error' && errorMessage?.includes('서버에 연결');
+  const hasPreparedStudent = Boolean(prefill);
 
   useEffect(() => {
     setErrorMessage(message);
     if (message) setStatus('error');
   }, [message]);
+
+  useEffect(() => {
+    if (!prefill) return;
+    setForm((current) => ({
+      ...current,
+      classId: prefill.classId,
+      studentCode: prefill.studentCode
+    }));
+  }, [prefill]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -970,8 +1016,8 @@ function StudentLaunchEntry({
           <ChevronLeft size={22} />
         </button>
         <span className="section-label">{job.title} 학생 입장</span>
-        <h2 id="student-launch-title">선생님이 준 입장 코드로 시작해요</h2>
-        <p>반, 학생 코드, 입장 코드를 확인한 뒤 {job.title} 체험을 시작합니다.</p>
+        <h2 id="student-launch-title">{hasPreparedStudent ? '입장 코드만 확인해요' : '선생님이 준 입장 코드로 시작해요'}</h2>
+        <p>{hasPreparedStudent ? `${job.title} 체험을 바로 시작할 수 있게 학생 정보가 준비되어 있습니다.` : `반, 학생 코드, 입장 코드를 확인한 뒤 ${job.title} 체험을 시작합니다.`}</p>
       </section>
 
       <section className="student-launch-panel" aria-label="학생 입장 정보">
@@ -984,26 +1030,41 @@ function StudentLaunchEntry({
         </div>
 
         <form className="student-launch-form" onSubmit={submit}>
-          <label>
-            <span>반 ID</span>
-            <input
-              value={form.classId}
-              onChange={(event) => setForm((current) => ({ ...current, classId: event.target.value }))}
-              placeholder="예: class-1"
-              autoComplete="off"
-              required
-            />
-          </label>
-          <label>
-            <span>학생 코드</span>
-            <input
-              value={form.studentCode}
-              onChange={(event) => setForm((current) => ({ ...current, studentCode: event.target.value }))}
-              placeholder="예: S001"
-              autoComplete="off"
-              required
-            />
-          </label>
+          {hasPreparedStudent ? (
+            <div className="student-launch-prepared" aria-label="준비된 학생 정보">
+              <div>
+                <span>반</span>
+                <strong>{form.classId}</strong>
+              </div>
+              <div>
+                <span>학생</span>
+                <strong>{form.studentCode}</strong>
+              </div>
+            </div>
+          ) : (
+            <>
+              <label>
+                <span>반 ID</span>
+                <input
+                  value={form.classId}
+                  onChange={(event) => setForm((current) => ({ ...current, classId: event.target.value }))}
+                  placeholder="예: class-1"
+                  autoComplete="off"
+                  required
+                />
+              </label>
+              <label>
+                <span>학생 코드</span>
+                <input
+                  value={form.studentCode}
+                  onChange={(event) => setForm((current) => ({ ...current, studentCode: event.target.value }))}
+                  placeholder="예: S001"
+                  autoComplete="off"
+                  required
+                />
+              </label>
+            </>
+          )}
           <label>
             <span>입장 코드</span>
             <input
@@ -1011,6 +1072,7 @@ function StudentLaunchEntry({
               onChange={(event) => setForm((current) => ({ ...current, launchCode: event.target.value }))}
               placeholder="선생님 코드"
               autoComplete="one-time-code"
+              autoCapitalize="characters"
               required
             />
           </label>
@@ -1659,6 +1721,9 @@ type RosterNotice = {
 
 type LaunchCodeNotice = TeacherLaunchCodeResult & {
   studentLabel: string;
+  classId: string;
+  studentCode: string;
+  entryUrl: string;
 };
 
 const emptyRosterDraft: RosterDraft = {
@@ -1844,12 +1909,38 @@ function TeacherStudentManagement() {
     setLaunchCode(null);
     try {
       const result = await generateStudentLaunchCode(student.id);
-      setLaunchCode({ ...result, studentLabel: studentLabel(student) });
+      const entryUrl = typeof window === 'undefined'
+        ? ''
+        : buildStudentEntryUrl(window.location.origin, window.location.pathname, {
+            classId: student.classId,
+            studentCode: student.studentCode
+          });
+      setLaunchCode({
+        ...result,
+        studentLabel: studentLabel(student),
+        classId: student.classId,
+        studentCode: student.studentCode,
+        entryUrl
+      });
       setNotice({ kind: 'success', message: '입장 코드를 새로 발급했습니다.' });
     } catch (error) {
       setNotice({ kind: 'error', message: getRosterErrorMessage(error) });
     } finally {
       setSavingKey(null);
+    }
+  }
+
+  async function handleCopyLaunchLink() {
+    if (!launchCode?.entryUrl) return;
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      setNotice({ kind: 'error', message: '이 브라우저에서는 자동 복사를 사용할 수 없습니다. 입력칸의 주소를 선택해 복사해 주세요.' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(launchCode.entryUrl);
+      setNotice({ kind: 'success', message: '학생 입장 링크를 복사했습니다.' });
+    } catch {
+      setNotice({ kind: 'error', message: '링크 복사에 실패했습니다. 입력칸의 주소를 선택해 복사해 주세요.' });
     }
   }
 
@@ -1916,14 +2007,39 @@ function TeacherStudentManagement() {
 
       {launchCode && (
         <section className="student-launch-code-panel" role="status" aria-live="polite">
-          <div>
-            <span>{launchCode.studentLabel} 입장 코드</span>
-            <strong>{launchCode.launchCode}</strong>
-            <small>{formatDateTime(launchCode.expiresAt)}까지 사용할 수 있습니다. 닫거나 다른 화면으로 이동하면 다시 표시하지 않습니다.</small>
+          <div className="student-launch-code-main">
+            <div>
+              <span>{launchCode.studentLabel} 입장 코드</span>
+              <strong>{launchCode.launchCode}</strong>
+              <small>{formatDateTime(launchCode.expiresAt)}까지 사용할 수 있습니다. 닫거나 다른 화면으로 이동하면 다시 표시하지 않습니다.</small>
+            </div>
+            <button type="button" onClick={() => setLaunchCode(null)} aria-label="입장 코드 닫기">
+              <X size={20} />
+            </button>
           </div>
-          <button type="button" onClick={() => setLaunchCode(null)} aria-label="입장 코드 닫기">
-            <X size={20} />
-          </button>
+          {launchCode.entryUrl && (
+            <div className="student-launch-link-tools">
+              <label>
+                <span>학생 입장 링크</span>
+                <input
+                  value={launchCode.entryUrl}
+                  readOnly
+                  onFocus={(event) => event.currentTarget.select()}
+                  aria-label={`${launchCode.studentLabel} 학생 입장 링크`}
+                />
+              </label>
+              <div>
+                <button type="button" onClick={handleCopyLaunchLink}>
+                  <Copy size={18} />
+                  링크 복사
+                </button>
+                <a href={launchCode.entryUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink size={18} />
+                  학생 화면 열기
+                </a>
+              </div>
+            </div>
+          )}
         </section>
       )}
 

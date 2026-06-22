@@ -22,6 +22,7 @@ import {
 import {
   applyResolvedStudentContext,
   applyStartedStudentSession,
+  buildStudentEntryUrl,
   buildTeacherSessionSummary,
   getAppHistoryView,
   getIntroContent,
@@ -29,6 +30,7 @@ import {
   getSummaryEncouragement,
   getSummaryMotivation,
   getSummaryStudentExpression,
+  getStudentLaunchPrefillFromSearch,
   hasBannedCopy,
   mergePersistedStateForInitialLoad,
   teacherDashboardNavigation
@@ -100,11 +102,41 @@ describe('student exploration copy and records', () => {
     expect(restored.replaying).toBe(false);
   });
 
+  it('starts a teacher-prepared student entry link on the launch step', () => {
+    const prefill = getStudentLaunchPrefillFromSearch('?entry=student&classId=class-1&studentCode=S001');
+    const restored = mergePersistedStateForInitialLoad({
+      ...initialState,
+      view: 'day',
+      studentSession: {
+        mode: 'demo',
+        startedAt: '2026-06-22T00:00:00.000Z'
+      }
+    }, prefill);
+
+    expect(prefill).toEqual({ classId: 'class-1', studentCode: 'S001' });
+    expect(restored.view).toBe('launch');
+    expect(restored.studentSession).toBeUndefined();
+  });
+
   it('accepts only known app views from browser history state', () => {
     expect(getAppHistoryView({ kkumideunView: 'launch' })).toBe('launch');
     expect(getAppHistoryView({ kkumideunView: 'intro' })).toBe('intro');
     expect(getAppHistoryView({ kkumideunView: 'path' })).toBeNull();
     expect(getAppHistoryView(null)).toBeNull();
+  });
+
+  it('builds student entry links without putting the launch code in the URL', () => {
+    const url = buildStudentEntryUrl('https://school.example', '/app', {
+      classId: 'class 1',
+      studentCode: 'S001'
+    });
+
+    expect(url).toBe('https://school.example/app?entry=student&classId=class+1&studentCode=S001');
+    expect(url).not.toContain('launchCode');
+    expect(getStudentLaunchPrefillFromSearch(new URL(url).search)).toEqual({
+      classId: 'class 1',
+      studentCode: 'S001'
+    });
   });
 
   it('flags teacher-dashboard ranking or scoring copy as banned', () => {
