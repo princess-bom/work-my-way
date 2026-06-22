@@ -13,23 +13,6 @@ export const appAssets = {
     librarianWelcome: `${generatedRoot}/characters/eiden-librarian-welcome-shared-1024x1536-v1.png`,
     bakerWelcome: `${generatedRoot}/characters/eiden-baker-welcome-shared-1024x1536-v1.png`
   },
-  path: {
-    worldMap: `${generatedRoot}/path/path-worldmap-base-desktop-1920x1080-v1.png`,
-    props: `${generatedRoot}/path/path-map-props-shared-1024x1024-v1.png`,
-    layeredBase: `${generatedRoot}/path/path-map-base-layered-desktop-1920x1080-v2.png`,
-    questionSign: `${generatedRoot}/path/path-sign-question-blank-shared-v2.png`,
-    landmarks: {
-      cafe: `${generatedRoot}/path/path-landmark-cafe-shared-v2.png`,
-      library: `${generatedRoot}/path/path-landmark-library-shared-v2.png`,
-      bakery: `${generatedRoot}/path/path-landmark-bakery-shared-v2.png`
-    },
-    markers: {
-      chat: `${generatedRoot}/path/path-route-marker-chat-shared-v2.png`,
-      book: `${generatedRoot}/path/path-route-marker-book-shared-v2.png`,
-      bread: `${generatedRoot}/path/path-route-marker-bread-shared-v2.png`,
-      neutral: `${generatedRoot}/path/path-route-marker-neutral-shared-v2.png`
-    }
-  },
   save: {
     notebook: `${generatedRoot}/save/save-notebook-tabletop-shared-1400x1000-v1.png`
   },
@@ -39,23 +22,16 @@ export const appAssets = {
   support: {
     visualPanels: `${generatedRoot}/support/support-visual-panels-shared-1200x800-v1.png`
   },
+  aac: {
+    cup: `${generatedRoot}/aac/aac-cup-v1.png`,
+    tool: `${generatedRoot}/aac/aac-tool-v1.png`,
+    ready: `${generatedRoot}/aac/aac-ready-v1.png`
+  },
   teacher: {
     teacherAvatar: `${generatedRoot}/teacher/teacher-avatar-shared-1024x1024-v1.png`,
     studentAvatars: `${generatedRoot}/teacher/student-avatar-set-shared-1024x1024-v1.png`
   }
 } as const;
-
-export const pathLandmarks: Record<JobId, string> = {
-  'barista-aide': appAssets.path.landmarks.cafe,
-  'library-aide': appAssets.path.landmarks.library,
-  'baker-aide': appAssets.path.landmarks.bakery
-};
-
-export const pathMarkers: Record<JobId, string> = {
-  'barista-aide': appAssets.path.markers.chat,
-  'library-aide': appAssets.path.markers.book,
-  'baker-aide': appAssets.path.markers.bread
-};
 
 export const jobEidenWelcome: Record<JobId, string> = {
   'barista-aide': appAssets.characters.baristaWelcome,
@@ -88,10 +64,10 @@ export const jobVisuals: Record<JobId, {
   'baker-aide': {
     diorama: `${generatedRoot}/jobs/job-baker-diorama-shared-1600x1200-v1.png`,
     scenes: {
-      tools: `${generatedSceneV2Root}/scene-baker-01-tools-eiden-v2.png`,
-      mix: `${generatedSceneV2Root}/scene-baker-02-mix-eiden-v2.png`,
-      bake: `${generatedSceneV2Root}/scene-baker-03-bake-eiden-v2.png`,
-      clean: `${generatedSceneV2Root}/scene-baker-04-clean-eiden-v2.png`
+      tools: `${generatedSceneV2Root}/scene-baker-01-tools-wide-eiden-v2.png`,
+      mix: `${generatedSceneV2Root}/scene-baker-02-mix-wide-eiden-v2.png`,
+      bake: `${generatedSceneV2Root}/scene-baker-03-bake-wide-eiden-v2.png`,
+      clean: `${generatedSceneV2Root}/scene-baker-04-clean-wide-eiden-v2.png`
     }
   }
 };

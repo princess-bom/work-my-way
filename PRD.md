@@ -302,8 +302,21 @@
 ### 7.5 품질 검증
 
 ```bash
-npm run verify   # build + unit + e2e + visual:diff
+npm ci
+npm run verify   # build + frontend tests + server no-emit + PostgreSQL smoke + e2e + visual:diff
 ```
+
+Release package manager: npm with `package-lock.json`. Do not use `pnpm-lock.yaml` for this release surface.
+
+Required deployment environment:
+
+```bash
+DATABASE_URL=postgres://...
+SESSION_SECRET=replace-with-random-secret
+SERVER_ENCRYPTION_KEY=replace-with-random-secret
+```
+
+Deployment topology: single-origin Vite frontend + Express API + PostgreSQL runtime. The Vite build is served from the same public origin as `/api/*`, the Express API handles backend routes on that origin, and PostgreSQL stores runtime API state.
 
 - `design-qa.md`: 현재 **blocked** (P1 화면 목업 피델리티 미완)
 - Unit: `hasBannedCopy`, `createRecord`, `mockCoachGateway`

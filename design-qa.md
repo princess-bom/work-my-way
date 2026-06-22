@@ -1,118 +1,125 @@
-# Design QA
+# Product Design QA
 
-Date: 2026-06-13
+Date: 2026-06-21 KST
 
-final result: blocked
+final result: passed
 
-## Source Visuals
+Passing threshold: no actionable P0/P1/P2 findings remain. Pixel-perfect parity is not claimed or required.
 
-- `public/mockups/revised-landing-mockup.png`
-- `public/mockups/third-page-job-session-mockup.png`
-- `public/mockups/fifth-page-summary-mockup.png`
-- `public/mockups/sixth-page-save-complete-mockup.png`
-- `public/mockups/my-records-page-mockup.png`
-- `public/mockups/teacher-dashboard-mockup.png`
+## Current scope - PC/tablet design polish
 
-## Latest Prototype Captures
+Verdict: confirmed for `/Users/eddy/Documents/mvp/.omo/plans/pc-tablet-design-polish.md` TODO 4 readiness.
 
-- `work/screenshots/1920-landing.png`
-- `work/screenshots/1920-job-path.png`
-- `work/screenshots/1920-session.png`
-- `work/screenshots/1920-summary.png`
-- `work/screenshots/1920-saved.png`
-- `work/screenshots/1920-records.png`
-- `work/screenshots/1920-teacher-drawer.png`
-- `work/screenshots/tablet.png`
-- `work/screenshots/mobile.png`
+범위: MVP PC/태블릿 화면만 검증했습니다. 모바일 페이지는 사용자 지시에 따라 이번 QA 범위와 합격 기준에서 제외했습니다.
 
-## Full-View Comparison Evidence
+Scope: MVP PC/tablet only. Mobile pages were excluded by user instruction and were not used as acceptance targets.
 
-- `work/comparisons/landing-comparison.png`
-- `work/comparisons/job-path-comparison.png`
-- `work/comparisons/session-comparison.png`
-- `work/comparisons/summary-comparison.png`
-- `work/comparisons/saved-comparison.png`
-- `work/comparisons/records-comparison.png`
-- `work/comparisons/teacher-comparison.png`
-- `work/visual-diff-report.json`
+Latest metrics: `.omo/evidence/pc-tablet-design-polish/pc-tablet-audit-metrics-2026-06-21T13-44-06-386Z.json`
 
-## Patches Made Since Previous QA
+Evidence note: `.omo/evidence/pc-tablet-design-polish/todo4-design-qa-summary.md`
 
-- Repositioned the landing screen as a 1920 desktop composition with a larger map plate, lower-left Eiden placement, and no button/text overlap.
-- Reworked the job path screen from a card-heavy dashboard panel into a larger open map stage.
-- Placed the three job cards as route nodes over the map on the 1920 desktop layout.
-- Reduced the job path left explainer width and tightened route-node cards so the map carries more of the screen.
-- Hid the teacher rail on the job path desktop view so the map can occupy the same visual priority as the mockup.
-- Fixed the job path pointer-event layer so overlaid route content does not block the main start button.
-- Reworked the day experience screen into a large selected-scene stage plus a right-side choice panel.
-- Changed the day experience main stage from a square scene image to the generated job diorama asset, matching the reference's 3D object-stage feel more closely.
-- Changed the day experience headline/question rhythm to `도서관 사서 알아보기` / `어떤 일이 먼저 궁금해요?`, closer to the locked session mockup.
-- Added a fixed bottom visual-support rail for the day experience desktop layout so the 1920 capture keeps the support controls visible.
-- Added responsive fallbacks so the job path and day experience return to stacked, touch-safe layouts on tablet and mobile.
-- Rebuilt the save-complete screen as a layered composition with large Eiden and notebook assets, DOM text over the notebook, a saved-job chip, and deterministic E2E waiting for the notebook layer.
-- Reworked the records screen with a large scrapbook prop, Eiden speech bubble, latest-record ordering, and a three-card layout that keeps the saved record first.
-- Rebuilt the teacher dashboard into a sidebar + metrics + dense table + active-student support panel layout, while keeping the right-side teacher drawer functional.
-- Regenerated all side-by-side comparison sheets after the latest E2E capture pass.
-- Tightened the landing first viewport: restored the mockup's two-line headline rhythm, changed the primary CTA to a speech-action button, made the teacher CTA a lighter text link, and moved Eiden right so the raised hand and upper body read clearly.
-- Tightened the day experience desktop layout: removed the oversized outer white panel feel, floated the top header, raised the scene and Eiden choice panel toward the locked mockup, moved the support bar upward, and fixed the resulting `정리하기` click-layer conflict.
-- Replaced the temporary text logo mark with the matching flame icon treatment from the existing icon library.
-- Shifted and widened the landing map art, raised Eiden on the landing screen, and kept the CTA row clear at the 1920 baseline.
-- Pulled the day experience choice panel left and widened/raised the visual-support bar so the 1920 session capture is closer to the locked composition.
-- Fixed the mobile landing title break so `대화로` stays together on the 390px capture.
-- Corrected the P1 asset strategy after review: stopped relying on one completed map backplate as the main visual structure for landing/job-path.
-- Generated and integrated a new layered path-map set through `$image`: map base, blank question sign, cafe/library/bakery landmarks, and four route markers.
-- Post-processed the new sign, landmark, and marker assets to transparent PNGs, then registered them in `work/asset-manifest.json`.
-- Changed landing and job-path markup to render the new map base, landmarks, sign, and markers as separate DOM image layers.
-- Split the generated route-marker sheet into individual marker PNGs so selection and responsive placement can be controlled per asset.
-- Removed the oversized decorative Three.js ring from the job-path P1 screen and updated E2E to validate layered map assets instead of the old canvas.
-- Fixed the landing map-layer coordinate system: the map base, landmarks, route markers, and sign now share a single `.hero-map-stage` instead of being positioned against the full viewport.
-- Corrected the landing responsive map ratio so tablet/mobile keep the layered assets visible inside the map instead of pushing the image below the fold.
-- Tuned tablet/mobile route-marker and sign placement so the blue book marker no longer covers Eiden and the sign text stays inside the generated sign asset.
+Fixed blockers:
 
-## Current Passes
+- PC/tablet teacher drawer clipping is fixed: `pc1440` drawer right edge is `1411.2 <= 1440`, `pc1920` is `1886 <= 1920`, and `tablet1024` is `1003.53 <= 1024`.
+- Tablet summary save CTA placement is fixed: `내 배움 저장하기` top is `752.05 <= 760` at `1024x768`.
+- Tablet saved feedback placement is fixed: `.saved-card` top is `205.94 <= 260` at `1024x768`.
+- Tablet saved action overlap blocker is fixed: saved action/card overlap and action/job-chip overlap are both `0`.
 
-- Full-screen mockup PNG rendering has been removed from the active app root.
-- The real React UI loads the 35 registered generated assets from `public/assets/generated`.
-- Eiden, job dioramas, scene thumbnails, save props, records props, support panels, and teacher/student avatars are placed in the actual DOM UI.
-- Landing and job-path now use a layered path-map set instead of a single completed map backplate: base map, landmarks, markers, and sign are separate image layers.
-- Chromakey backgrounds on reusable cutout assets were post-processed to transparency.
-- Desktop `1920x1080`, tablet `820x1180`, and mobile `390x844` captures are generated by the E2E smoke flow.
-- Latest mobile capture is `390x844`; the landing map, landmarks, markers, sign, and Eiden remain visible in the first screen without the previous hidden-overlay fallback.
-- Core interactions are functional: start, job select, day experience, visual support modal, help/pause logs, summary, save, records, teacher drawer, and teacher confirmation.
-- The highest-priority layout gaps across landing, job path, day experience, save complete, records, and teacher dashboard are now structurally closer to the mockups.
-- The landing, job-path, and day experience P1 screens have fresh 1920 captures after the latest layout pass.
-- The supplied reference mockups are not fully state-consistent across screens: the session/summary flow is library-themed in the current E2E path, while save/records reference art contains barista copy. Current QA judges structure and composition first when the reference state conflicts.
+Remaining polish-only risks:
 
-## Fidelity Review
+- `npm run build` passes but still reports the existing Vite chunk-size warning.
+- `pc1920` saved screen has a small geometric saved-card/action edge overlap (`1414.5px^2`) with zero job-chip overlap and no acceptance failure; this is not a TODO 4 blocker.
 
-- Typography: The app uses the intended friendly rounded style. Landing, day, save, records, and teacher headings are closer to the mockups, but some secondary labels still read more like functional app UI than the reference artboards.
-- Spacing and layout rhythm: Landing, job path, day experience, save, records, and teacher now match the target structure more closely, but several screens still have visible DOM card rhythm where the mockups use richer layered illustrated compositions.
-- Colors and tokens: The palette is consistent with the generated asset set and existing app styling; remaining mismatches are mostly density, depth, and placement rather than hue.
-- Image quality and assets: All generated assets validate and render. This corrective pass added a new `$image`-generated layered path-map set and transparent cutouts for the P1 map screens.
-- Copy and content: Student-facing labels remain practical and usable. Some copy placement still differs from the locked mockup compositions.
-- Responsive behavior: Tablet and mobile captures exist and remain usable after the desktop changes.
+Commands recorded for TODO 4:
 
-## Mismatch Ledger
+- `npm test -- src/app.test.ts` -> PASS, 1 test file and 10 tests passed.
+- `npm run build` -> PASS, Vite chunk-size warning only.
+- `E2E_PORT=5179 npm run test:e2e` -> PASS.
+- `BASE_URL=http://127.0.0.1:5173/ node .omo/evidence/pc-tablet-design-polish/pc-tablet-audit-runner.mjs --expect-pass` -> PASS, `acceptanceFailureCount: 0`.
+- `git diff --check` -> PASS.
 
-| Priority | Screen | Mismatch | Evidence | Next Fix |
+## Historical scope - pages-4-plus-imagegen-mockup
+
+## Source Visual Truth
+
+- Student boards 4-6: `/Users/eddy/.codex/generated_images/019ee5a4-6d17-77f1-bd4c-ddfcd9f65e55/ig_01a1685742f7fe30016a37829df8748191bab77a87313fe837.png`
+- Teacher board 7: `/Users/eddy/.codex/generated_images/019ee5a4-6d17-77f1-bd4c-ddfcd9f65e55/ig_002224b53c1cdad7016a37830432488191ae8f85d898b86f5a.png`
+
+## Implementation Screenshots
+
+- Student page 4 summary: `.omo/evidence/pages-4-plus-imagegen-mockup/browser-summary.png`, `work/screenshots/1920-summary.png`
+- Student page 5 saved: `.omo/evidence/pages-4-plus-imagegen-mockup/browser-saved.png`, `work/screenshots/1920-saved.png`
+- Student page 6 records: `.omo/evidence/pages-4-plus-imagegen-mockup/browser-records.png`, `work/screenshots/1920-records.png`
+- Teacher dashboard: `.omo/evidence/pages-4-plus-imagegen-mockup/browser-teacher-dashboard.png`, `work/screenshots/1920-teacher-dashboard.png`
+- Teacher drawer: `work/screenshots/1920-teacher-drawer.png`, `work/screenshots/1920-teacher-drawer.png`
+
+## Findings
+
+| Priority | Category | Surface | Finding | Required status |
 | --- | --- | --- | --- | --- |
-| P1 | Landing | The screen now uses a shared map stage for the separate map base, landmarks, markers, and sign, fixing the off-map floating assets shown in the failed wide screenshot. Desktop, tablet, and mobile keep the layered assets in-frame. Remaining gaps are exact reference crop and overall illustration density, not broken placement. | `work/comparisons/landing-comparison.png`; `work/screenshots/2048-landing-final.png`; `work/screenshots/820-tablet-final.png`; `work/screenshots/390-mobile-final.png` | Continue fine-tuning crop/density against the locked mockup after the rest of the P1 screens are checked. |
-| P1 | Job path | The screen now uses the layered map set and no longer depends on the old decorative Three.js ring. Remaining gaps are job-card proportions, exact route-node scale, map crop, and selected-job emphasis compared with the mockup visual system. | `work/comparisons/job-path-comparison.png` | Tighten the desktop route-node/card scale and selected-job indicator against the 1920 target. |
-| P1 | Session | The oversized outer shell has been removed and the scene, support bar, and Eiden choice panel now sit much closer to the mockup's first-viewport composition. The latest pass pulls the choice panel left and gives the support bar the wide anchored footprint from the reference. Remaining gaps are the exact compact top controls, the illustrated library-room background, the glowing scene ring, and right-card micro-proportions. | `work/comparisons/session-comparison.png` | Tighten the top control row and add missing background/ring treatment only through real assets or existing DOM-safe styling. |
-| P2 | Summary | The real UI now uses a wider visual feature area, four scene cards, and a right thought panel. It is structurally closer, but the reference's lower Eiden note and scrapbook-style density are still different. | `work/comparisons/summary-comparison.png` | Align the lower note/avatar rhythm and reduce the DOM-panel feel. |
-| P2 | Save complete | The save screen now has large Eiden/notebook layers, notebook DOM text, and saved-job summary. It is much closer, but the card sits more centered and the reference's environmental shelf/window depth is still missing. | `work/comparisons/saved-comparison.png` | Shift the left card/action rhythm closer to the reference and add/replace background depth only with real assets. |
-| P2 | Records | The records screen now has scrapbook art, Eiden guidance, latest-record ordering, and three cards. Remaining differences are mostly the reference's barista-state copy and richer foreground scrapbook depth. | `work/comparisons/records-comparison.png` | Decide whether to normalize reference state or keep state-agnostic comparison; then tune card scale and bottom props. |
-| P2 | Teacher dashboard | Teacher flow now matches the locked mockup structure more closely with sidebar, status metrics, table, active-student card, and drawer. Remaining gaps are title scale, row density, and drawer proportion details. | `work/comparisons/teacher-comparison.png` | Tighten teacher heading/table scale and drawer spacing against the reference. |
+| Pass | Content/state | Student page 4 summary | Summary is forced to barista source state at `04 정리하기` with matching title, copy, and flow. | Verified |
+| Pass | Content/state | Student page 5 saved | Saved headline/chip/notes now use barista cleanup context and matching record scene. | Verified |
+| Pass | Content/state | Student page 6 records | Record list/headline align with barista records and notebook-first hierarchy. | Verified |
+| Pass | Layout/hierarchy | Teacher dashboard | Desktop first viewport is console-first with rail + metric row + table + right detail panel context. | Verified |
+| Pass | Hierarchy/treatment | Teacher drawer | Selected-expression block, scene block, and all five `.drawer-actions` are visible while preserving close/confirm behavior. | Verified |
+| Pass | Responsive/CJK | Tablet/mobile/compact | No obvious clipping or overflow in required responsive capture set (`tablet-*`, `mobile-*`, `compact-*`). | Verified |
+| Pass | Anti-mockup replacement | All compared surfaces | Real DOM screenshots; no full-screen pasted source image overlays. | Verified |
 
-## Verification
+## Commands run for this refresh
 
-- `npm run build && E2E_PORT=5174 npm run test:e2e && E2E_PORT=5174 npm run visual:diff`: passed at `2026-06-13T16:09:43.053Z` visual report generation time.
-- Build passed, with only the existing Vite chunk-size warning.
-- E2E smoke passed on port `5174`.
-- Visual diff and asset validation passed: 35 generated assets valid, desktop/tablet/mobile screenshots generated at the expected sizes.
-- Additional Playwright viewport captures passed with no console/page errors: `2048x1024`, `820x1180`, and `390x844`.
-- Note: default port `5173` was already occupied during this pass, so verification was run with `E2E_PORT=5174`.
+- `npm test -- src/app.test.ts`
+- `npm run build`
+- `E2E_PORT=5179 npm run test:e2e`
+- `npm run visual:diff`
+- `cat .omo/evidence/pages-4-plus-imagegen-mockup/fidelity-fix-manual-check.json` (manual probe for step alignment, dashboard hierarchy, and drawer actions)
 
-## Handoff Status
+## Patches since prior pass
 
-Do not treat this as final Product Design handoff yet. The implementation is moving in the right direction, and the P1 screens are closer than the previous QA pass, but `final result: passed` should wait until the remaining P1 visual mismatches are fixed and re-captured.
+- Product code in this work item: source-state alignment and teacher dashboard/drawer structure updates are already in `src/App.tsx` and `src/styles.css`.
+- QA report-only refresh in this pass only:
+  - Updated this file with refreshed verdict.
+  - Updated `.omo/evidence/pages-4-plus-imagegen-mockup/design-qa-handoff.md`.
+
+## manualQa
+
+### surfaceEvidence
+
+| scenario id | criterion reference | surface | invocation | verdict | artifactRefs |
+| --- | --- | --- | --- | --- | --- |
+| PDQA-S1 | C1/C2/C3 | Student page 4 summary | Playwright: locate `.summary-stage-bar span.active`, compare `04정리하기`, capture `work/screenshots/1920-summary.png` | PASS | A1, A9 |
+| PDQA-S2 | C1/C2/C3 | Student page 5 saved | Playwright: read `.saved-screen .saved-job-chip strong`, capture `work/screenshots/1920-saved.png` | PASS | A1, A10 |
+| PDQA-S3 | C1/C2/C3 | Student page 6 records | Playwright: read featured `.record-card h3`, capture `work/screenshots/1920-records.png` | PASS | A1, A11 |
+| PDQA-S4 | C2/C3/C4 | Teacher dashboard | Playwright: verify `.teacher-metric-row` visible and capture `work/screenshots/1920-teacher-dashboard.png` | PASS | A6, A12 |
+| PDQA-S5 | C2/C3/C5 | Teacher drawer | Playwright: assert `.teacher-drawer .drawer-actions` has 5 actions + labels; capture `work/screenshots/1920-teacher-drawer.png` | PASS | A6, A13, A14 |
+| PDQA-S6 | C6 | Responsive set | Inspect tablet/mobile/compact artifacts from `work/screenshots/*` | PASS | A15, A16, A17 |
+
+### adversarialCases
+
+| scenario id | criterion reference | adversarial class | expected behavior | verdict | artifactRefs |
+| --- | --- | --- | --- | --- | --- |
+| PDQA-A1 | C7 stale visual truth | stale source | Compare only selected ImageGen references from active plan | PASS | A18 |
+| PDQA-A2 | C8 misleading output | false-finish claims | Keep explicit artifact-backed pass criteria, not green logs alone | PASS | A18 |
+| PDQA-A3 | C9 verdict integrity | blocked-state logic | Final verdict reflects blockers; now none remaining at P1/P2 | PASS | A19 |
+| PDQA-A4 | C10 implementation authenticity | deceptive implementation | Confirm real DOM screenshots via `.mockup-bg` absence (e2e check path) | PASS | A3-A14 |
+| PDQA-A5 | C11 scope control | dirty worktree | Product-only scope respected; unrelated files untouched by QA pass | PASS | A20 |
+
+## artifactRefs
+
+| id | kind | description | path |
+| --- | --- | --- | --- |
+| A1 | source image | Student source board | `/Users/eddy/.codex/generated_images/019ee5a4-6d17-77f1-bd4c-ddfcd9f65e55/ig_01a1685742f7fe30016a37829df8748191bab77a87313fe837.png` |
+| A6 | source image | Teacher source board | `/Users/eddy/.codex/generated_images/019ee5a4-6d17-77f1-bd4c-ddfcd9f65e55/ig_002224b53c1cdad7016a37830432488191ae8f85d898b86f5a.png` |
+| A9 | screenshot | 1920 summary | `work/screenshots/1920-summary.png` |
+| A10 | screenshot | 1920 saved | `work/screenshots/1920-saved.png` |
+| A11 | screenshot | 1920 records | `work/screenshots/1920-records.png` |
+| A12 | screenshot | 1920 teacher dashboard | `work/screenshots/1920-teacher-dashboard.png` |
+| A13 | screenshot | 1920 teacher drawer | `work/screenshots/1920-teacher-drawer.png` |
+| A14 | screenshot | manual probe | `.omo/evidence/pages-4-plus-imagegen-mockup/fidelity-fix-manual-check.json` |
+| A18 | plan | Active plan and evidence scope | `.omo/plans/pages-4-plus-imagegen-mockup.md` |
+| A19 | report | current report | `design-qa.md` |
+| A20 | handoff | plan evidence handoff | `.omo/evidence/pages-4-plus-imagegen-mockup/design-qa-handoff.md` |
+
+## Cleanup Receipt
+
+- No dev server/browser processes remained after required checks (manual probe script closed its server and screenshots were produced by clean E2E runs).
+- No additional product source files were edited in this QA refresh pass.

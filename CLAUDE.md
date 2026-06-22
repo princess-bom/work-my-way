@@ -12,9 +12,22 @@ In QA mode, flag any code that doesn't match `DESIGN.md`.
 Product design lock: `outputs/design-lock-summary.md`
 QA status: `design-qa.md`
 
-## Dev
+## Dev And Release
 
 ```bash
+npm ci
 npm run dev
-npm run verify   # build + test + e2e + visual:diff
+npm run verify   # build + frontend tests + server no-emit + PostgreSQL smoke + e2e + visual:diff
 ```
+
+Release package manager: npm with `package-lock.json`. Do not use `pnpm-lock.yaml` for this release surface.
+
+Required deployment environment:
+
+```bash
+DATABASE_URL=postgres://...
+SESSION_SECRET=replace-with-random-secret
+SERVER_ENCRYPTION_KEY=replace-with-random-secret
+```
+
+Deployment topology: single-origin Vite frontend + Express API + PostgreSQL runtime. The Vite build is served from the same public origin as `/api/*`, the Express API handles backend routes on that origin, and PostgreSQL stores runtime API state.

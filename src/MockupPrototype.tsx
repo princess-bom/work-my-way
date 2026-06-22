@@ -1,5 +1,4 @@
 import type { JobId, ViewId } from './domain';
-import { MockupThreeOverlay } from './MockupThreeOverlay';
 
 type MockupPrototypeProps = {
   view: ViewId;
@@ -18,7 +17,7 @@ type MockupPrototypeProps = {
 
 const backgrounds: Record<ViewId, string> = {
   landing: '/mockups/revised-landing-mockup.png',
-  path: '/mockups/revised-landing-mockup.png',
+  launch: '/mockups/revised-landing-mockup.png',
   intro: '/mockups/third-page-job-session-mockup.png',
   day: '/mockups/third-page-job-session-mockup.png',
   summary: '/mockups/fifth-page-summary-mockup.png',
@@ -48,17 +47,6 @@ export function MockupPrototype({
       {view === 'landing' && (
         <>
           <Hotspot label="시작하기" className="spot-landing-start" onClick={onStart} />
-          <Hotspot label="교사용으로 보기" className="spot-landing-teacher" onClick={onTeacher} />
-        </>
-      )}
-
-      {view === 'path' && (
-        <>
-          <MockupThreeOverlay selectedJobId={selectedJobId} onSelectJob={onChooseJob} />
-          <Hotspot label="카페 바리스타 선택" className="spot-map-cafe" onClick={() => onChooseJob('barista-aide')} />
-          <Hotspot label="도서관 사서 선택" className="spot-map-library" onClick={() => onChooseJob('library-aide')} />
-          <Hotspot label="제빵사 선택" className="spot-map-baker" onClick={() => onChooseJob('baker-aide')} />
-          <Hotspot label="선택한 직업 탐색하기" className="spot-map-continue" onClick={onJobSession} />
           <Hotspot label="교사용으로 보기" className="spot-landing-teacher" onClick={onTeacher} />
         </>
       )}

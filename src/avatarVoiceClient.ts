@@ -12,6 +12,11 @@ type AvatarSpeechApiResponse = {
   error?: string;
 };
 
+export type AvatarSpeechRequestContext = {
+  sessionId?: string;
+  studentToken?: string;
+};
+
 const avatarSpeechTimeoutMs = 24_000;
 
 async function fetchWithTimeout(url: string, init: RequestInit) {
@@ -34,11 +39,13 @@ function base64ToBlobUrl(audioBase64: string, mimeType: string) {
   return URL.createObjectURL(blob);
 }
 
-export async function requestAvatarSpeech(input: string, voice = 'alloy'): Promise<AvatarSpeechAudio> {
+export async function requestAvatarSpeech(input: string, voice = 'alloy', context: AvatarSpeechRequestContext = {}): Promise<AvatarSpeechAudio> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (context.studentToken) headers['x-student-context'] = context.studentToken;
   const response = await fetchWithTimeout('/api/avatar/speak', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input, provider: 'openai', voice })
+    headers,
+    body: JSON.stringify({ input, provider: 'openai', voice, sessionId: context.sessionId })
   });
   const body = (await response.json()) as AvatarSpeechApiResponse;
 

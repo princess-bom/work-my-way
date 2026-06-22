@@ -11,12 +11,6 @@ const cases = [
     expected: { width: 1920, height: 1080 }
   },
   {
-    name: 'intro-next',
-    actual: 'work/screenshots/1920-intro-next.png',
-    reference: null,
-    expected: { width: 1920, height: 1080 }
-  },
-  {
     name: 'intro',
     actual: 'work/screenshots/1920-intro.png',
     reference: null,
@@ -59,6 +53,18 @@ const cases = [
     expected: { width: 1920, height: 1080 }
   },
   {
+    name: 'teacher-drawer-actions',
+    actual: 'work/screenshots/1920-teacher-drawer-actions.png',
+    reference: null,
+    expected: { width: 1920, height: 1080 }
+  },
+  {
+    name: 'teacher-dashboard',
+    actual: 'work/screenshots/1920-teacher-dashboard.png',
+    reference: 'public/mockups/teacher-dashboard-mockup.png',
+    expected: { width: 1920, height: 1080 }
+  },
+  {
     name: 'tablet',
     actual: 'work/screenshots/tablet.png',
     reference: null,
@@ -73,6 +79,42 @@ const cases = [
   {
     name: 'tablet-day',
     actual: 'work/screenshots/tablet-day.png',
+    reference: null,
+    expected: { width: 820, minHeight: 1180 }
+  },
+  {
+    name: 'tablet-summary',
+    actual: 'work/screenshots/tablet-summary.png',
+    reference: null,
+    expected: { width: 820, minHeight: 1180 }
+  },
+  {
+    name: 'tablet-saved',
+    actual: 'work/screenshots/tablet-saved.png',
+    reference: null,
+    expected: { width: 820, minHeight: 1180 }
+  },
+  {
+    name: 'tablet-records',
+    actual: 'work/screenshots/tablet-records.png',
+    reference: null,
+    expected: { width: 820, minHeight: 1180 }
+  },
+  {
+    name: 'tablet-teacher-dashboard',
+    actual: 'work/screenshots/tablet-teacher-dashboard.png',
+    reference: null,
+    expected: { width: 820, minHeight: 1180 }
+  },
+  {
+    name: 'tablet-teacher-drawer',
+    actual: 'work/screenshots/tablet-teacher-drawer.png',
+    reference: null,
+    expected: { width: 820, minHeight: 1180 }
+  },
+  {
+    name: 'tablet-teacher-drawer-actions',
+    actual: 'work/screenshots/tablet-teacher-drawer-actions.png',
     reference: null,
     expected: { width: 820, minHeight: 1180 }
   },
@@ -95,6 +137,42 @@ const cases = [
     expected: { width: 390, minHeight: 844 }
   },
   {
+    name: 'mobile-summary',
+    actual: 'work/screenshots/mobile-summary.png',
+    reference: null,
+    expected: { width: 390, minHeight: 844 }
+  },
+  {
+    name: 'mobile-saved',
+    actual: 'work/screenshots/mobile-saved.png',
+    reference: null,
+    expected: { width: 390, minHeight: 844 }
+  },
+  {
+    name: 'mobile-records',
+    actual: 'work/screenshots/mobile-records.png',
+    reference: null,
+    expected: { width: 390, minHeight: 844 }
+  },
+  {
+    name: 'mobile-teacher-dashboard',
+    actual: 'work/screenshots/mobile-teacher-dashboard.png',
+    reference: null,
+    expected: { width: 390, minHeight: 844 }
+  },
+  {
+    name: 'mobile-teacher-drawer',
+    actual: 'work/screenshots/mobile-teacher-drawer.png',
+    reference: null,
+    expected: { width: 390, minHeight: 844 }
+  },
+  {
+    name: 'mobile-teacher-drawer-actions',
+    actual: 'work/screenshots/mobile-teacher-drawer-actions.png',
+    reference: null,
+    expected: { width: 390, minHeight: 844 }
+  },
+  {
     name: 'compact-intro',
     actual: 'work/screenshots/compact-intro.png',
     reference: null,
@@ -103,6 +181,42 @@ const cases = [
   {
     name: 'compact-day',
     actual: 'work/screenshots/compact-day.png',
+    reference: null,
+    expected: { width: 320, minHeight: 568 }
+  },
+  {
+    name: 'compact-summary',
+    actual: 'work/screenshots/compact-summary.png',
+    reference: null,
+    expected: { width: 320, minHeight: 568 }
+  },
+  {
+    name: 'compact-saved',
+    actual: 'work/screenshots/compact-saved.png',
+    reference: null,
+    expected: { width: 320, minHeight: 568 }
+  },
+  {
+    name: 'compact-records',
+    actual: 'work/screenshots/compact-records.png',
+    reference: null,
+    expected: { width: 320, minHeight: 568 }
+  },
+  {
+    name: 'compact-teacher-dashboard',
+    actual: 'work/screenshots/compact-teacher-dashboard.png',
+    reference: null,
+    expected: { width: 320, minHeight: 568 }
+  },
+  {
+    name: 'compact-teacher-drawer',
+    actual: 'work/screenshots/compact-teacher-drawer.png',
+    reference: null,
+    expected: { width: 320, minHeight: 568 }
+  },
+  {
+    name: 'compact-teacher-drawer-actions',
+    actual: 'work/screenshots/compact-teacher-drawer-actions.png',
     reference: null,
     expected: { width: 320, minHeight: 568 }
   }

@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { getPool, type Queryable } from './db/client';
+import { decryptSecret, hashToken, parseCookies, teacherSessionCookieName, verifyStudentToken } from './api/security';
 
 type AvatarVoiceProvider = 'openai';
 
@@ -6,11 +8,30 @@ export type AvatarVoicePayload = {
   provider: AvatarVoiceProvider;
   input: string;
   voice?: string;
+  schoolId?: string;
+  sessionId?: string;
+  studentToken?: string;
 };
 
 type ParsedRequest =
   | { ok: true; payload: AvatarVoicePayload }
   | { ok: false; status: number; error: string };
+
+type OpenAIVoiceProviderSetting = {
+  provider: 'openai_tts';
+  model: string | null;
+  voice: string | null;
+  encrypted_api_key: string;
+};
+
+export type VoiceProviderGate =
+  | { enabled: true; setting: OpenAIVoiceProviderSetting }
+  | { enabled: false; reason: 'voice_provider_context_missing' | 'voice_provider_not_configured_or_disabled' };
+
+type AvatarVoiceHandlerOptions = {
+  db?: Queryable;
+  resolveVoiceProviderGate?: (schoolId: string, payload: AvatarVoicePayload) => Promise<VoiceProviderGate>;
+};
 
 const maxBodyBytes = 12_288;
 const maxInputCharacters = 1_000;
@@ -59,6 +80,10 @@ function sanitizeVoiceInput(input: string) {
     .slice(0, maxInputCharacters);
 }
 
+function optionalIdentifier(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 80) : undefined;
+}
+
 export function normalizeAvatarVoicePayload(raw: unknown): AvatarVoicePayload | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const candidate = raw as Record<string, unknown>;
@@ -69,7 +94,10 @@ export function normalizeAvatarVoicePayload(raw: unknown): AvatarVoicePayload | 
   return {
     provider,
     input,
-    voice: typeof candidate.voice === 'string' ? candidate.voice.slice(0, 40) : undefined
+    voice: typeof candidate.voice === 'string' ? candidate.voice.slice(0, 40) : undefined,
+    schoolId: optionalIdentifier(candidate.schoolId),
+    sessionId: optionalIdentifier(candidate.sessionId),
+    studentToken: typeof candidate.studentToken === 'string' ? candidate.studentToken : undefined
   };
 }
 
@@ -105,20 +133,20 @@ async function withTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): P
   }
 }
 
-function toBase64(buffer: ArrayBuffer) {
-  return Buffer.from(buffer).toString('base64');
-}
-
-export function buildOpenAISpeechRequestBody(payload: AvatarVoicePayload) {
+export function buildOpenAISpeechRequestBody(payload: AvatarVoicePayload, setting?: OpenAIVoiceProviderSetting) {
   return {
-    model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
-    voice: payload.voice || process.env.OPENAI_TTS_VOICE || 'alloy',
+    model: setting?.model || process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+    voice: payload.voice || setting?.voice || process.env.OPENAI_TTS_VOICE || 'alloy',
     input: payload.input,
     instructions:
       process.env.OPENAI_TTS_INSTRUCTIONS ||
       'Speak in Korean with a warm, clear, calm teacher voice for a classroom demo.',
     response_format: 'mp3'
   };
+}
+
+function toBase64(buffer: ArrayBuffer) {
+  return Buffer.from(buffer).toString('base64');
 }
 
 async function audioResponseJson(res: ServerResponse, provider: AvatarVoiceProvider, response: Response) {
@@ -131,9 +159,113 @@ async function audioResponseJson(res: ServerResponse, provider: AvatarVoiceProvi
   });
 }
 
-async function speakWithOpenAI(payload: AvatarVoicePayload, res: ServerResponse) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+function isExpectedOpenAITtsFailure(error: unknown) {
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return error.name === 'AbortError' || error.name === 'TimeoutError';
+  }
+  if (!(error instanceof Error)) return false;
+  return error.name === 'AbortError' || error.name === 'TimeoutError' || error.name === 'TypeError' || error.name === 'FetchError';
+}
+
+function readStudentToken(req: IncomingMessage, payload: AvatarVoicePayload) {
+  const headerToken = req.headers['x-student-context']?.toString();
+  if (headerToken) return headerToken;
+  const authorization = req.headers.authorization;
+  if (authorization?.startsWith('Student ')) return authorization.slice('Student '.length);
+  return payload.studentToken;
+}
+
+function hasAvatarVoiceCredential(req: IncomingMessage, payload: AvatarVoicePayload) {
+  return Boolean(parseCookies(req.headers.cookie).get(teacherSessionCookieName) || readStudentToken(req, payload));
+}
+
+async function authenticateTeacherForSession(db: Queryable, req: IncomingMessage, session: { school_id: string; class_id: string }) {
+  const token = parseCookies(req.headers.cookie).get(teacherSessionCookieName);
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const teacher = await db.query<{ id: string; school_id: string; role: 'admin' | 'teacher' | 'support_staff'; display_name: string }>(
+    `
+      select ta.id, ta.school_id, ta.role, ta.display_name
+      from teacher_sessions ts
+      join teacher_accounts ta on ta.id = ts.teacher_id
+      where ts.token_hash = $1 and ts.revoked_at is null and ts.expires_at > now() and ta.active = true
+      limit 1
+    `,
+    [tokenHash]
+  );
+  const row = teacher.rows[0];
+  if (!row || row.school_id !== session.school_id) return null;
+
+  const access = await db.query<{ id: string }>(
+    `
+      select c.id
+      from classes c
+      where c.id = $1 and c.school_id = $2 and c.active = true and (
+        $3::boolean
+        or exists (
+          select 1 from class_teacher_memberships ctm
+          where ctm.class_id = c.id and ctm.teacher_id = $4 and ctm.active = true
+        )
+      )
+      limit 1
+    `,
+    [session.class_id, row.school_id, row.role === 'admin', row.id]
+  );
+  if (!access.rows[0]) return null;
+  await db.query('update teacher_sessions set last_seen_at = now() where token_hash = $1', [tokenHash]);
+  return row;
+}
+
+async function authenticateAvatarVoiceRequest(req: IncomingMessage, payload: AvatarVoicePayload, db: Queryable) {
+  if (!payload.sessionId) return { ok: false as const, status: 401, error: 'session_context_required' };
+  const session = await db.query<{ school_id: string; class_id: string; student_id: string }>(
+    'select school_id, class_id, student_id from exploration_sessions where id = $1 limit 1',
+    [payload.sessionId]
+  );
+  const row = session.rows[0];
+  if (!row) return { ok: false as const, status: 403, error: 'session_access_denied' };
+
+  const teacher = await authenticateTeacherForSession(db, req, row);
+  if (teacher) return { ok: true as const, schoolId: row.school_id };
+
+  const rawStudentToken = readStudentToken(req, payload);
+  if (!rawStudentToken) return { ok: false as const, status: 401, error: 'session_access_required' };
+  const studentToken = verifyStudentToken(rawStudentToken);
+  if (!studentToken) return { ok: false as const, status: 401, error: 'session_access_required' };
+  if (studentToken.schoolId !== row.school_id || studentToken.classId !== row.class_id || studentToken.studentId !== row.student_id) {
+    return { ok: false as const, status: 403, error: 'session_access_denied' };
+  }
+  return { ok: true as const, schoolId: row.school_id };
+}
+
+async function resolveVoiceProviderGate(schoolId: string, _payload: AvatarVoicePayload, db?: Queryable): Promise<VoiceProviderGate> {
+  const activeDb = db ?? getPool();
+  const result = await activeDb.query<OpenAIVoiceProviderSetting>(
+    `
+      select provider, model, voice, encrypted_api_key
+      from voice_provider_settings
+      where school_id = $1 and provider = 'openai_tts' and enabled = true and encrypted_api_key is not null
+      order by updated_at desc
+      limit 1
+    `,
+    [schoolId]
+  );
+  const setting = result.rows[0];
+  if (!setting) return { enabled: false, reason: 'voice_provider_not_configured_or_disabled' };
+  return { enabled: true, setting };
+}
+
+async function speakWithOpenAI(payload: AvatarVoicePayload, res: ServerResponse, schoolId: string, resolveGate: (schoolId: string, payload: AvatarVoicePayload) => Promise<VoiceProviderGate>) {
+  const gate = await resolveGate(schoolId, payload);
+  if (!gate.enabled) {
+    json(res, 200, { error: gate.reason });
+    return;
+  }
+
+  let apiKey: string;
+  try {
+    apiKey = decryptSecret(gate.setting.encrypted_api_key);
+  } catch {
     json(res, 200, { error: 'openai_key_missing' });
     return;
   }
@@ -147,7 +279,7 @@ async function speakWithOpenAI(payload: AvatarVoicePayload, res: ServerResponse)
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(buildOpenAISpeechRequestBody(payload))
+        body: JSON.stringify(buildOpenAISpeechRequestBody(payload, gate.setting))
       })
     );
 
@@ -157,32 +289,55 @@ async function speakWithOpenAI(payload: AvatarVoicePayload, res: ServerResponse)
     }
 
     await audioResponseJson(res, 'openai', response);
-  } catch {
+  } catch (error) {
+    if (!isExpectedOpenAITtsFailure(error)) throw error;
     json(res, 200, { error: 'openai_tts_unavailable' });
   }
 }
 
-export async function avatarVoiceHandler(req: IncomingMessage, res: ServerResponse) {
-  if (req.method !== 'POST') {
-    json(res, 405, { error: 'method_not_allowed' });
-    return;
-  }
+export function createAvatarVoiceHandler(options: AvatarVoiceHandlerOptions = {}) {
+  const getDb = () => options.db ?? getPool();
+  const resolveGate = options.resolveVoiceProviderGate ?? ((schoolId: string, payload: AvatarVoicePayload) => resolveVoiceProviderGate(schoolId, payload, getDb()));
 
-  if (!sameOriginAllows(req)) {
-    json(res, 403, { error: 'origin_not_allowed' });
-    return;
-  }
+  return async function avatarVoiceHandler(req: IncomingMessage, res: ServerResponse) {
+    if (req.method !== 'POST') {
+      json(res, 405, { error: 'method_not_allowed' });
+      return;
+    }
 
-  if (!rateLimitAllows(req)) {
-    json(res, 429, { error: 'rate_limited' });
-    return;
-  }
+    if (!sameOriginAllows(req)) {
+      json(res, 403, { error: 'origin_not_allowed' });
+      return;
+    }
 
-  const parsed = await readJson(req);
-  if (!parsed.ok) {
-    json(res, parsed.status, { error: parsed.error });
-    return;
-  }
+    if (!rateLimitAllows(req)) {
+      json(res, 429, { error: 'rate_limited' });
+      return;
+    }
 
-  await speakWithOpenAI(parsed.payload, res);
+    const parsed = await readJson(req);
+    if (!parsed.ok) {
+      json(res, parsed.status, { error: parsed.error });
+      return;
+    }
+
+    if (!parsed.payload.sessionId) {
+      json(res, 401, { error: 'session_context_required' });
+      return;
+    }
+    if (!hasAvatarVoiceCredential(req, parsed.payload)) {
+      json(res, 401, { error: 'session_access_required' });
+      return;
+    }
+
+    const auth = await authenticateAvatarVoiceRequest(req, parsed.payload, getDb());
+    if (!auth.ok) {
+      json(res, auth.status, { error: auth.error });
+      return;
+    }
+
+    await speakWithOpenAI(parsed.payload, res, auth.schoolId, resolveGate);
+  };
 }
+
+export const avatarVoiceHandler = createAvatarVoiceHandler();

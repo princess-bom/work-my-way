@@ -5,28 +5,39 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "api:dev": "tsx server/api/server.ts",
+    "api:migrate": "tsx server/db/migrate.ts",
+    "api:seed": "tsx server/db/seed.ts",
+    "api:test:pg": "tsx server/api/smoke-postgres.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:e2e": "node e2e/smoke.mjs",
     "visual:diff": "node e2e/visual-diff.mjs",
-    "verify": "npm run build && npm run test && npm run test:e2e && npm run visual:diff"
+    "verify": "npm run build && npm run test && npx tsc -p tsconfig.node.json --noEmit && npm run api:test:pg && npm run test:e2e && npm run visual:diff"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "lucide-react": "^0.560.0",
+    "pg": "^8.21.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "three": "^0.181.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.0.1",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/supertest": "^7.2.0",
     "@types/three": "^0.181.0",
     "@vitejs/plugin-react": "^6.0.2",
     "playwright": "^1.60.0",
+    "supertest": "^7.2.2",
     "tailwindcss": "^4.3.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vite": "^8.0.16",
     "vitest": "^4.0.15"

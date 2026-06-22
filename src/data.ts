@@ -1,12 +1,7 @@
 import type { AacOption, AppState, JobProfile, TeacherLog } from './domain';
 
 function aacOptions(options: AacOption[]): AacOption[] {
-  return [
-    ...options,
-    { id: 'unsure', label: '잘 모르겠어요', value: '잘 모르겠어요', type: 'support' },
-    { id: 'replay', label: '다시 듣기', value: 'REPLAY', type: 'support', supportAction: 'replay' },
-    { id: 'teacher-help', label: '선생님 도움', value: 'TEACHER_HELP', type: 'support', supportAction: 'help' }
-  ];
+  return options;
 }
 
 export const jobs: JobProfile[] = [
@@ -23,7 +18,7 @@ export const jobs: JobProfile[] = [
         label: '01 준비하기',
         description: '컵과 도구를 가지런히 준비합니다.',
         prompt: '바리스타가 먼저 준비하는 것은 무엇일까요?',
-        narration: '이든이 카페 일을 시작하기 전에 컵과 도구를 가지런히 준비하고 있어요. 필요한 물건을 먼저 확인하며 차분히 일을 준비합니다.',
+        narration: '카페 일을 시작하기 전에 컵과 도구를 가지런히 준비합니다. 바리스타는 필요한 물건을 먼저 확인하며 차분히 일을 준비합니다.',
         observationPrompt: '그림에서 보이는 물건이나 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['컵', '도구', '수건', '커피콩'],
         aacOptions: aacOptions([
@@ -38,7 +33,7 @@ export const jobs: JobProfile[] = [
         label: '02 손님 맞이',
         description: '손님을 보고 인사와 안내를 합니다.',
         prompt: '손님을 맞이할 때 어떤 말이 필요할까요?',
-        narration: '이든이 카페에 온 손님을 보고 차분히 인사하고 있어요. 바리스타는 손님의 주문을 듣고 필요한 안내를 합니다.',
+        narration: '카페에 온 손님을 보고 차분히 인사합니다. 바리스타는 손님의 주문을 듣고 필요한 안내를 합니다.',
         observationPrompt: '그림에서 보이는 사람이나 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['손님', '인사', '주문', '카운터'],
         aacOptions: aacOptions([
@@ -53,7 +48,7 @@ export const jobs: JobProfile[] = [
         label: '03 음료 만들기',
         description: '주문을 보고 음료를 차근차근 만듭니다.',
         prompt: '음료를 만들 때 조심해야 할 일은 무엇일까요?',
-        narration: '이든이 주문을 확인하고 음료를 차근차근 만들고 있어요. 바리스타는 도구를 안전하게 사용하며 음료를 준비합니다.',
+        narration: '주문을 확인하고 음료를 차근차근 만듭니다. 바리스타는 도구를 안전하게 사용하며 음료를 준비합니다.',
         observationPrompt: '그림에서 보이는 도구나 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['커피머신', '컵', '음료', '주문'],
         aacOptions: aacOptions([
@@ -68,7 +63,7 @@ export const jobs: JobProfile[] = [
         label: '04 정리하기',
         description: '테이블과 도구를 다시 정돈합니다.',
         prompt: '마지막에 정리하면 좋은 곳은 어디일까요?',
-        narration: '이든이 사용한 도구와 작업대를 다시 정돈하고 있어요. 바리스타는 다음 일을 위해 주변을 깨끗하게 정리합니다.',
+        narration: '사용한 도구와 작업대를 다시 정돈합니다. 바리스타는 다음 일을 위해 주변을 깨끗하게 정리합니다.',
         observationPrompt: '그림에서 보이는 정리 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['작업대', '도구', '테이블', '정리'],
         aacOptions: aacOptions([
@@ -98,7 +93,7 @@ export const jobs: JobProfile[] = [
         label: '01 반납 확인',
         description: '돌아온 책을 살펴봅니다.',
         prompt: '돌아온 책은 어디에 두면 좋을까요?',
-        narration: '이든이 도서관으로 돌아온 책을 살펴보고 있어요. 사서는 반납된 책을 확인하고 다음 정리를 준비합니다.',
+        narration: '도서관으로 돌아온 책을 살펴봅니다. 사서는 반납된 책을 확인하고 다음 정리를 준비합니다.',
         observationPrompt: '그림에서 보이는 책이나 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['책', '반납대', '확인', '분류'],
         aacOptions: aacOptions([
@@ -113,7 +108,7 @@ export const jobs: JobProfile[] = [
         label: '02 책 정리',
         description: '책을 주제와 번호에 맞게 놓습니다.',
         prompt: '책을 제자리에 놓으면 어떤 점이 좋을까요?',
-        narration: '이든이 책을 주제와 번호에 맞게 서가에 놓고 있어요. 사서는 사람들이 책을 다시 찾기 쉽도록 제자리를 확인합니다.',
+        narration: '책을 주제와 번호에 맞게 서가에 놓습니다. 사서는 사람들이 책을 다시 찾기 쉽도록 제자리를 확인합니다.',
         observationPrompt: '그림에서 보이는 책이나 정리 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['책', '책장', '번호', '정리'],
         aacOptions: aacOptions([
@@ -128,7 +123,7 @@ export const jobs: JobProfile[] = [
         label: '03 이용 안내',
         description: '책을 찾는 사람에게 위치를 알려줍니다.',
         prompt: '책을 찾는 사람에게 무엇을 알려줄까요?',
-        narration: '이든이 책을 찾는 사람에게 위치를 안내하고 있어요. 사서는 필요한 책이 어디에 있는지 차분히 알려줍니다.',
+        narration: '책을 찾는 사람에게 위치를 안내합니다. 사서는 필요한 책이 어디에 있는지 차분히 알려줍니다.',
         observationPrompt: '그림에서 보이는 사람이나 안내 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['이용자', '책', '안내', '위치'],
         aacOptions: aacOptions([
@@ -143,7 +138,7 @@ export const jobs: JobProfile[] = [
         label: '04 공간 정돈',
         description: '책상과 서가 주변을 차분히 살핍니다.',
         prompt: '도서관을 정리할 때 볼 곳은 어디일까요?',
-        narration: '이든이 책상과 서가 주변을 차분히 살피고 있어요. 사서는 도서관을 조용하고 이용하기 좋은 공간으로 정돈합니다.',
+        narration: '책상과 서가 주변을 차분히 살핍니다. 사서는 도서관을 조용하고 이용하기 좋은 공간으로 정돈합니다.',
         observationPrompt: '그림에서 보이는 공간이나 정리 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['책상', '서가', '공간', '조용히'],
         aacOptions: aacOptions([
@@ -173,7 +168,7 @@ export const jobs: JobProfile[] = [
         label: '01 도구 준비',
         description: '반죽 도구와 재료를 차분히 준비합니다.',
         prompt: '제빵사가 먼저 준비하는 도구는 무엇일까요?',
-        narration: '이든이 빵을 만들기 전에 반죽 도구와 재료를 차분히 준비하고 있어요. 제빵사는 필요한 물건을 먼저 확인합니다.',
+        narration: '빵을 만들기 전에 반죽 도구와 재료를 차분히 준비합니다. 제빵사는 필요한 물건을 먼저 확인합니다.',
         observationPrompt: '그림에서 보이는 도구나 재료를 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['그릇', '밀가루', '도구', '재료'],
         aacOptions: aacOptions([
@@ -188,13 +183,13 @@ export const jobs: JobProfile[] = [
         label: '02 반죽 섞기',
         description: '재료를 넣고 반죽을 천천히 섞습니다.',
         prompt: '반죽을 섞을 때 어떤 순서로 해볼까요?',
-        narration: '이든이 재료를 넣고 반죽을 천천히 섞고 있어요. 제빵사는 순서를 확인하며 반죽의 상태를 살핍니다.',
+        narration: '재료를 넣고 반죽을 천천히 섞습니다. 제빵사는 순서를 확인하며 반죽의 상태를 살핍니다.',
         observationPrompt: '그림에서 보이는 재료나 섞는 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['반죽', '재료', '섞기', '그릇'],
         aacOptions: aacOptions([
           { id: 'dough', label: '반죽', value: '반죽이 보여요', type: 'object' },
-          { id: 'ingredients', label: '재료', value: '재료가 보여요', type: 'object' },
-          { id: 'mix-action', label: '섞어요', value: '반죽을 섞어요', type: 'action' }
+          { id: 'mix-action', label: '섞어요', value: '반죽을 섞어요', type: 'action' },
+          { id: 'ingredients', label: '재료', value: '재료가 보여요', type: 'object' }
         ]),
         conversationGoal: '학생이 제빵사가 재료를 넣고 반죽을 섞는 장면을 관찰하도록 돕는다.'
       },
@@ -203,7 +198,7 @@ export const jobs: JobProfile[] = [
         label: '03 굽기',
         description: '빵이 오븐에서 익어 가는 모습을 봅니다.',
         prompt: '빵을 구울 때 기다려야 하는 순간은 언제일까요?',
-        narration: '이든이 오븐 앞에서 빵이 익어 가는 모습을 살피고 있어요. 제빵사는 뜨거운 오븐 주변에서 안전하게 기다립니다.',
+        narration: '오븐 앞에서 빵이 익어 가는 모습을 살핍니다. 제빵사는 뜨거운 오븐 주변에서 안전하게 기다립니다.',
         observationPrompt: '그림에서 보이는 빵이나 안전 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['오븐', '빵', '장갑', '기다리기'],
         aacOptions: aacOptions([
@@ -218,7 +213,7 @@ export const jobs: JobProfile[] = [
         label: '04 정리하기',
         description: '도구와 작업대를 다시 정돈합니다.',
         prompt: '마지막에 정리하면 좋은 곳은 어디일까요?',
-        narration: '이든이 사용한 도구와 작업대를 다시 정돈하고 있어요. 제빵사는 다음 작업을 위해 주변을 깨끗하게 마무리합니다.',
+        narration: '사용한 도구와 작업대를 다시 정돈합니다. 제빵사는 다음 작업을 위해 주변을 깨끗하게 마무리합니다.',
         observationPrompt: '그림에서 보이는 정리 행동을 버튼으로 표현해도 괜찮습니다.',
         visualTargets: ['작업대', '도구', '수건', '정리'],
         aacOptions: aacOptions([
@@ -250,23 +245,77 @@ export const initialTeacherLogs: TeacherLog[] = [
   {
     id: 'log-demo-1',
     createdAt: new Date(Date.now() - 38 * 60_000).toISOString(),
+    sessionId: 'demo-session-barista-clean',
+    studentId: 'demo-student-minseok',
     studentName: '이민석 학생',
+    jobId: 'barista-aide',
     jobTitle: '바리스타',
+    sceneId: 'clean',
     stageLabel: '살펴보기',
     signal: '흥미',
     supportLevel: '기본',
     summary: '컵 준비와 손님 맞이에 관심을 보였습니다. 다음 수업에서 카페 도구 그림을 다시 보겠습니다.',
+    responseMode: 'touch',
+    studentExpression: '컵 준비와 손님 맞이 선택',
+    supportUsed: [],
+    sceneTurnReached: 'meaning',
+    evidenceCandidates: [
+      {
+        criterionKey: 'observe_scene_target',
+        title: '카페 장면 단서 관찰',
+        candidateLevel: 'emerging',
+        candidateStatus: 'needs_review',
+        summary: '컵 준비와 손님 맞이 선택은 바리스타 장면 단서 후보 근거입니다.',
+        supportSummary: '지원 사용 기록 없음',
+        teacherReviewQuestion: '이 표현을 다음 지도에 쓸 후보 근거로 둘까요?'
+      }
+    ],
+    nextInstructionGuide: [
+      {
+        id: 'photo-object-match',
+        action: '컵, 도구, 손님 그림을 놓고 같은 대상을 다시 고르게 합니다.',
+        reason: '학생이 고른 장면 단서를 실제 수업 자료와 연결합니다.'
+      }
+    ],
+    teacherDecisionRequired: ['후보 근거 채택 여부', '지원 사용 기록 확인', '다음 수업 활동 선택'],
     status: '참고 기록'
   },
   {
     id: 'log-demo-2',
     createdAt: new Date(Date.now() - 22 * 60_000).toISOString(),
+    sessionId: 'demo-session-baker-pack',
+    studentId: 'demo-student-jiwon',
     studentName: '박지원 학생',
+    jobId: 'baker-aide',
     jobTitle: '제빵사',
+    sceneId: 'clean',
     stageLabel: '그림 지원',
     signal: '도움 필요',
     supportLevel: '시각+선택 중심',
     summary: '빵 포장과 도구 정리 그림 중 빵 포장 그림을 먼저 짚어주면 좋겠습니다.',
+    responseMode: 'visual',
+    studentExpression: '빵 포장 그림 먼저 보기',
+    supportUsed: ['visual'],
+    sceneTurnReached: 'practice_support',
+    evidenceCandidates: [
+      {
+        criterionKey: 'use_visual_support',
+        title: '시각 자료로 장면 다시 보기',
+        candidateLevel: 'with_support',
+        candidateStatus: 'support_needed',
+        summary: '그림 지원을 사용해 제빵 정리 장면을 다시 볼 후보 근거입니다.',
+        supportSummary: '시각 자료 사용',
+        teacherReviewQuestion: '같은 장면을 그림 자료로 다시 제시할까요?'
+      }
+    ],
+    nextInstructionGuide: [
+      {
+        id: 'same-scene-fewer-choices',
+        action: '빵 포장과 도구 정리 그림 2개만 놓고 다시 고르게 합니다.',
+        reason: '선택지를 줄이면 학생이 장면을 부담 없이 다시 볼 수 있습니다.'
+      }
+    ],
+    teacherDecisionRequired: ['후보 근거 채택 여부', '지원 사용 기록 확인', '다음 수업 활동 선택'],
     status: '확인 대기'
   }
 ];
@@ -283,6 +332,7 @@ export const initialState: AppState = {
   replaying: false,
   visualSupportOpen: false,
   resting: false,
+  studentSession: undefined,
   teacherDrawerLogId: null,
   teacherLogs: initialTeacherLogs,
   records: []
@@ -314,7 +364,7 @@ export function createCoachReply(scene: JobProfile['scenes'][number], option: Aa
   }
 
   if (option.supportAction === 'replay') {
-    return '같은 설명을 다시 들려드리겠습니다.';
+    return '이든과 대화하며 같은 장면을 다시 살펴보겠습니다.';
   }
 
   return `${option.label}에 함께 집중해보겠습니다. ${scene.description}`;
