@@ -95,6 +95,10 @@ const viewLabels: Record<ViewId, string> = {
   teacher: '교사 보기'
 };
 
+type AppHistoryState = {
+  kkumideunView?: ViewId;
+};
+
 type TeacherDashboardPageId = 'records' | 'students';
 type ViteEnv = {
   MODE?: string;
@@ -114,34 +118,53 @@ function getViteEnv(): ViteEnv {
   return (import.meta as ImportMeta & { env?: ViteEnv }).env ?? {};
 }
 
-function normalizeLoadedView(view: unknown): ViewId {
-  if (view === 'onboarding' || view === 'path') return 'intro';
+export function getAppHistoryView(value: unknown): ViewId | null {
+  if (!value || typeof value !== 'object') return null;
+  const historyView = (value as AppHistoryState).kkumideunView;
   if (
-    view === 'landing' ||
-    view === 'launch' ||
-    view === 'intro' ||
-    view === 'day' ||
-    view === 'summary' ||
-    view === 'saved' ||
-    view === 'records' ||
-    view === 'teacher'
+    historyView === 'landing' ||
+    historyView === 'launch' ||
+    historyView === 'intro' ||
+    historyView === 'day' ||
+    historyView === 'summary' ||
+    historyView === 'saved' ||
+    historyView === 'records' ||
+    historyView === 'teacher'
   ) {
-    return view;
+    return historyView;
   }
-  return 'landing';
+  return null;
 }
 
-function mergeLoadedState(): AppState {
-  const loaded = localSessionRepository.load();
+function writeHistoryView(view: ViewId, mode: 'push' | 'replace') {
+  if (typeof window === 'undefined') return;
+  const historyState: AppHistoryState = { kkumideunView: view };
+  if (mode === 'replace') {
+    window.history.replaceState(historyState, '', window.location.href);
+    return;
+  }
+  window.history.pushState(historyState, '', window.location.href);
+}
+
+export function mergePersistedStateForInitialLoad(loaded: Partial<AppState> | null): AppState {
   if (!loaded) return initialState;
   return {
     ...initialState,
     ...loaded,
-    view: normalizeLoadedView(loaded.view),
+    view: 'landing',
     selectedJobId: loaded.selectedJobId ?? 'barista-aide',
+    studentSession: undefined,
+    teacherEvidenceTarget: undefined,
+    visualSupportOpen: false,
+    resting: false,
+    replaying: false,
     teacherLogs: loaded.teacherLogs?.length ? loaded.teacherLogs : initialState.teacherLogs,
     records: sortRecordsByLatest(loaded.records ?? [])
   };
+}
+
+function mergeLoadedState(): AppState {
+  return mergePersistedStateForInitialLoad(localSessionRepository.load());
 }
 
 function formatTime(value: string) {
@@ -421,6 +444,23 @@ export function App() {
     localSessionRepository.save(state);
   }, [state]);
 
+  useEffect(() => {
+    writeHistoryView(state.view, 'replace');
+    const handlePopState = (event: PopStateEvent) => {
+      const view = getAppHistoryView(event.state) ?? 'landing';
+      setState((current) => ({
+        ...current,
+        view,
+        visualSupportOpen: false,
+        resting: false,
+        replaying: false
+      }));
+      scrollToPageTop();
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const appClassName = [
     'app',
     `view-${state.view}`,
@@ -441,6 +481,7 @@ export function App() {
   }
 
   function go(view: ViewId) {
+    writeHistoryView(view, 'push');
     update({ view, visualSupportOpen: false, resting: false, replaying: false });
     scrollToPageTop();
   }
@@ -473,6 +514,7 @@ export function App() {
   async function resolveStudentAndEnterIntro(input: { classId: string; studentCode: string; launchCode: string }) {
     const context = await resolveStudentLaunch(input);
     setStudentLaunchMessage(null);
+    writeHistoryView('intro', 'push');
     setState((current) => applyResolvedStudentContext(current, context));
     scrollToPageTop();
   }
@@ -483,6 +525,7 @@ export function App() {
       startedAt: new Date().toISOString()
     };
     setStudentLaunchMessage(null);
+    writeHistoryView('intro', 'push');
     setState((current) => ({
       ...current,
       view: 'intro',
@@ -512,6 +555,7 @@ export function App() {
     setStudentSessionStarting(true);
     try {
       const sessionId = await createExplorationSession(state.studentSession, state.selectedJobId);
+      writeHistoryView('day', 'push');
       setState((current) => ({
         ...applyStartedStudentSession(current, sessionId),
         view: 'day',
@@ -638,6 +682,7 @@ export function App() {
       records: [record, ...current.records],
       view: 'saved'
     }));
+    writeHistoryView('saved', 'push');
     scrollToPageTop();
   }
 

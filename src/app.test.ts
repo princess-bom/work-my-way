@@ -23,12 +23,14 @@ import {
   applyResolvedStudentContext,
   applyStartedStudentSession,
   buildTeacherSessionSummary,
+  getAppHistoryView,
   getIntroContent,
   getNextIntroJobId,
   getSummaryEncouragement,
   getSummaryMotivation,
   getSummaryStudentExpression,
   hasBannedCopy,
+  mergePersistedStateForInitialLoad,
   teacherDashboardNavigation
 } from './App';
 import { getSceneImage } from './assets';
@@ -71,6 +73,40 @@ function createAiSuggestionTeacherLog(overrides: Partial<TeacherLog> = {}): Teac
 }
 
 describe('student exploration copy and records', () => {
+  it('starts a fresh browser visit at landing even when saved state was mid-flow', () => {
+    const restored = mergePersistedStateForInitialLoad({
+      ...initialState,
+      view: 'day',
+      selectedJobId: 'baker-aide',
+      studentSession: {
+        mode: 'demo',
+        startedAt: '2026-06-22T00:00:00.000Z'
+      },
+      teacherEvidenceTarget: {
+        sessionId: 'old-session',
+        studentId: 'old-student'
+      },
+      visualSupportOpen: true,
+      resting: true,
+      replaying: true
+    });
+
+    expect(restored.view).toBe('landing');
+    expect(restored.selectedJobId).toBe('baker-aide');
+    expect(restored.studentSession).toBeUndefined();
+    expect(restored.teacherEvidenceTarget).toBeUndefined();
+    expect(restored.visualSupportOpen).toBe(false);
+    expect(restored.resting).toBe(false);
+    expect(restored.replaying).toBe(false);
+  });
+
+  it('accepts only known app views from browser history state', () => {
+    expect(getAppHistoryView({ kkumideunView: 'launch' })).toBe('launch');
+    expect(getAppHistoryView({ kkumideunView: 'intro' })).toBe('intro');
+    expect(getAppHistoryView({ kkumideunView: 'path' })).toBeNull();
+    expect(getAppHistoryView(null)).toBeNull();
+  });
+
   it('flags teacher-dashboard ranking or scoring copy as banned', () => {
     expect(hasBannedCopy('학생 점수와 적합률을 보여줍니다')).toBe(true);
     expect(hasBannedCopy('정답을 잘했어요')).toBe(true);
