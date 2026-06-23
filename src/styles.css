@@ -10464,6 +10464,20 @@ h3 {
   border-radius: 22px;
 }
 
+.student-management-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.student-management-head-actions button {
+  min-height: 44px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
 .student-management-head span,
 .student-create-form span,
 .student-roster-fields span,
@@ -10589,6 +10603,144 @@ h3 {
 .student-management-alert.is-readonly {
   border-color: rgba(64, 100, 132, 0.22);
   background: #f3f8ff;
+}
+
+.class-entry-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 4vw, 32px);
+  background: rgba(47, 37, 26, 0.34);
+  backdrop-filter: blur(8px);
+}
+
+.class-entry-modal {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  max-height: min(720px, calc(100vh - 32px));
+  overflow: auto;
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid rgba(93, 72, 50, 0.18);
+  border-radius: 26px;
+  background: #fffdfa;
+  box-shadow: 0 28px 80px rgba(42, 47, 54, 0.22);
+}
+
+.class-entry-modal header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 12px;
+  align-items: start;
+}
+
+.class-entry-modal header > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.class-entry-modal header span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 840;
+}
+
+.class-entry-modal h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.08;
+  word-break: keep-all;
+}
+
+.class-entry-modal p {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 780;
+  line-height: 1.42;
+  word-break: keep-all;
+}
+
+.class-entry-modal header button {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--line-soft);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--text-strong);
+}
+
+.class-entry-student-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.class-entry-student-grid button {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: center;
+  min-height: 76px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(252, 114, 4, 0.28);
+  border-radius: 18px;
+  background: #fff8ef;
+  color: var(--text-strong);
+  text-align: left;
+}
+
+.class-entry-student-grid button:disabled {
+  opacity: 0.64;
+}
+
+.class-entry-student-grid svg {
+  grid-row: 1 / span 2;
+  width: 44px;
+  height: 44px;
+  padding: 11px;
+  border-radius: 50%;
+  color: #a34d00;
+  background: var(--accent-orange-soft);
+}
+
+.class-entry-student-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.18;
+}
+
+.class-entry-student-grid span,
+.class-entry-student-grid em {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.class-entry-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid rgba(171, 82, 43, 0.34);
+  border-radius: 18px;
+  background: #fff3eb;
+  color: var(--text-strong);
+  font-weight: 780;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 .student-launch-code-panel {
@@ -10922,6 +11074,14 @@ h3 {
     display: grid;
   }
 
+  .student-management-head-actions {
+    justify-content: stretch;
+  }
+
+  .student-management-head-actions button {
+    width: 100%;
+  }
+
   .student-roster-fields {
     grid-template-columns: 1fr;
   }
@@ -10974,8 +11134,12 @@ h3 {
     margin-left: 0;
   }
 
-  .student-launch-code-panel {
-    grid-template-columns: minmax(0, 1fr) 48px;
+  .class-entry-modal {
+    border-radius: 22px;
+  }
+
+  .class-entry-student-grid {
+    grid-template-columns: 1fr;
   }
 
   .student-roster-actions {

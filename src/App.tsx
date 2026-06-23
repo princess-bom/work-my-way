@@ -28,6 +28,7 @@ import {
   Save,
   ShieldAlert,
   Sparkles,
+  UserCheck,
   UserPlus,
   Users,
   X
@@ -104,6 +105,10 @@ type AppHistoryState = {
 type StudentLaunchPrefill = {
   classId: string;
   studentCode: string;
+};
+
+type StudentLaunchStartOptions = {
+  historyMode?: 'push' | 'replace';
 };
 
 type TeacherDashboardPageId = 'records' | 'students';
@@ -544,10 +549,10 @@ export function App() {
     });
   }
 
-  async function resolveStudentAndEnterIntro(input: { classId: string; studentCode: string; launchCode: string }) {
+  async function resolveStudentAndEnterIntro(input: { classId: string; studentCode: string; launchCode: string }, options: StudentLaunchStartOptions = {}) {
     const context = await resolveStudentLaunch(input);
     setStudentLaunchMessage(null);
-    writeHistoryView('intro', 'push');
+    writeHistoryView('intro', options.historyMode ?? 'push');
     setState((current) => applyResolvedStudentContext(current, context));
     scrollToPageTop();
   }
@@ -851,6 +856,7 @@ export function App() {
             drawerLog={drawerLog}
             onConfirm={confirmLog}
             onStudent={() => go('launch')}
+            onClassStudentLaunch={(input) => resolveStudentAndEnterIntro(input, { historyMode: 'replace' })}
           />
         )}
       </div>
@@ -1526,7 +1532,8 @@ function TeacherDashboard({
   onOpen,
   onClose,
   onConfirm,
-  onStudent
+  onStudent,
+  onClassStudentLaunch
 }: {
   logs: TeacherLog[];
   records: ExplorationRecord[];
@@ -1535,6 +1542,7 @@ function TeacherDashboard({
   onClose: () => void;
   onConfirm: (id: string, decision: TeacherDecision, note?: string) => void;
   onStudent: () => void;
+  onClassStudentLaunch: (input: StudentLaunchInput) => Promise<void>;
 }) {
   const pending = logs.filter((log) => log.status === '확인 대기');
   const completed = logs.filter((log) => log.status === '기록 완료');
@@ -1599,7 +1607,7 @@ function TeacherDashboard({
           </header>
 
           {activePage === 'students' ? (
-            <TeacherStudentManagement />
+            <TeacherStudentManagement onClassStudentLaunch={onClassStudentLaunch} />
           ) : (
             <>
               <section className="teacher-metric-row" aria-label="기록 상태 요약">
@@ -1757,7 +1765,123 @@ function buildStudentDraftPayload(draft: RosterDraft) {
   };
 }
 
-function TeacherStudentManagement() {
+function ClassStudentEntryModal({
+  classLabel,
+  students,
+  startingStudentId,
+  message,
+  onClose,
+  onSelect
+}: {
+  classLabel: string;
+  students: TeacherRosterStudent[];
+  startingStudentId: string | null;
+  message: string | null;
+  onClose: () => void;
+  onSelect: (student: TeacherRosterStudent) => void;
+}) {
+  const firstStudentButtonRef = useRef<HTMLButtonElement | null>(null);
+  const modalRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const canCloseRef = useRef(!startingStudentId);
+
+  onCloseRef.current = onClose;
+  canCloseRef.current = !startingStudentId;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    firstStudentButtonRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && canCloseRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusable = Array.from(
+        modalRef.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? []
+      ).filter((element) => !element.hasAttribute('disabled'));
+
+      if (!focusable.length) {
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        previouslyFocused.focus();
+      }
+    };
+  }, []);
+
+  return (
+    <div className="class-entry-backdrop">
+      <section ref={modalRef} className="class-entry-modal" role="dialog" aria-modal="true" aria-labelledby="class-entry-title">
+        <header>
+          <div>
+            <span>{classLabel}</span>
+            <h3 id="class-entry-title">본인 이름을 선택해요</h3>
+            <p>선택하면 바로 직업 체험 화면으로 이동합니다.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="클래스 입장 닫기" disabled={Boolean(startingStudentId)}>
+            <X size={20} />
+          </button>
+        </header>
+
+        <div className="class-entry-student-grid" aria-label="학생 이름 선택">
+          {students.map((student, index) => {
+            const starting = startingStudentId === student.id;
+            return (
+              <button
+                key={student.id}
+                ref={index === 0 ? firstStudentButtonRef : undefined}
+                type="button"
+                onClick={() => onSelect(student)}
+                disabled={Boolean(startingStudentId)}
+              >
+                <UserCheck size={22} />
+                <strong>{studentLabel(student)}</strong>
+                <span>{student.classNumber ? `${student.classNumber}번` : '학생'}</span>
+                {starting && <em>시작 중</em>}
+              </button>
+            );
+          })}
+        </div>
+
+        {message && (
+          <div className="class-entry-alert" role="alert">
+            <AlertTriangle size={20} />
+            <span>{message}</span>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function TeacherStudentManagement({
+  onClassStudentLaunch
+}: {
+  onClassStudentLaunch: (input: StudentLaunchInput) => Promise<void>;
+}) {
   const [teacher, setTeacher] = useState<TeacherSession | null>(null);
   const [classes, setClasses] = useState<TeacherClassSummary[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -1769,9 +1893,13 @@ function TeacherStudentManagement() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [launchCode, setLaunchCode] = useState<LaunchCodeNotice | null>(null);
+  const [classEntryOpen, setClassEntryOpen] = useState(false);
+  const [classEntryStudentId, setClassEntryStudentId] = useState<string | null>(null);
+  const [classEntryMessage, setClassEntryMessage] = useState<string | null>(null);
 
   const selectedClass = classes.find((item) => item.id === selectedClassId);
   const rosterWritable = canManageRoster(teacher?.role);
+  const activeStudents = students.filter((student) => student.active);
 
   function updateDrafts(nextStudents: TeacherRosterStudent[]) {
     setDrafts(Object.fromEntries(nextStudents.map((student) => [student.id, draftFromStudent(student)])));
@@ -1794,6 +1922,8 @@ function TeacherStudentManagement() {
     setLoadError(null);
     setNotice(null);
     setLaunchCode(null);
+    setClassEntryOpen(false);
+    setClassEntryMessage(null);
     try {
       const [nextTeacher, nextClasses] = await Promise.all([fetchTeacherMe(), fetchTeacherClasses()]);
       const activeClasses = nextClasses.filter((item) => item.active !== false);
@@ -1831,6 +1961,7 @@ function TeacherStudentManagement() {
     return () => {
       active = false;
       setLaunchCode(null);
+      setClassEntryOpen(false);
     };
   }, []);
 
@@ -1838,6 +1969,8 @@ function TeacherStudentManagement() {
     setSelectedClassId(classId);
     setNotice(null);
     setLaunchCode(null);
+    setClassEntryOpen(false);
+    setClassEntryMessage(null);
     setStatus('loading');
     try {
       await refreshStudents(classId);
@@ -1845,6 +1978,26 @@ function TeacherStudentManagement() {
     } catch (error) {
       setStatus('error');
       setLoadError(getRosterErrorMessage(error));
+    }
+  }
+
+  async function handleClassEntrySelect(student: TeacherRosterStudent) {
+    if (!rosterWritable || classEntryStudentId) return;
+
+    setClassEntryStudentId(student.id);
+    setClassEntryMessage(null);
+    try {
+      const result = await generateStudentLaunchCode(student.id);
+      await onClassStudentLaunch({
+        classId: student.classId,
+        studentCode: student.studentCode,
+        launchCode: result.launchCode
+      });
+      setClassEntryOpen(false);
+    } catch (error) {
+      setClassEntryMessage(getRosterErrorMessage(error));
+    } finally {
+      setClassEntryStudentId(null);
     }
   }
 
@@ -1951,10 +2104,24 @@ function TeacherStudentManagement() {
           <span>교사 roster</span>
           <h3>담당 반 학생을 등록하고 입장 코드를 발급합니다</h3>
         </div>
-        <button className="secondary-cta compact" type="button" onClick={loadRosterPage}>
-          <RefreshCw size={18} />
-          새로고침
-        </button>
+        <div className="student-management-head-actions">
+          <button
+            className="primary-cta compact"
+            type="button"
+            onClick={() => {
+              setClassEntryMessage(null);
+              setClassEntryOpen(true);
+            }}
+            disabled={!rosterWritable || status !== 'ready' || activeStudents.length === 0}
+          >
+            <UserCheck size={18} />
+            클래스 입장 시작
+          </button>
+          <button className="secondary-cta compact" type="button" onClick={loadRosterPage}>
+            <RefreshCw size={18} />
+            새로고침
+          </button>
+        </div>
       </header>
 
       <div className="student-management-controls">
@@ -2003,6 +2170,19 @@ function TeacherStudentManagement() {
           {notice.kind === 'error' ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
           <span>{notice.message}</span>
         </div>
+      )}
+
+      {classEntryOpen && (
+        <ClassStudentEntryModal
+          classLabel={selectedClass?.name ?? '선택한 반'}
+          students={activeStudents}
+          startingStudentId={classEntryStudentId}
+          message={classEntryMessage}
+          onClose={() => {
+            if (!classEntryStudentId) setClassEntryOpen(false);
+          }}
+          onSelect={handleClassEntrySelect}
+        />
       )}
 
       {launchCode && (
