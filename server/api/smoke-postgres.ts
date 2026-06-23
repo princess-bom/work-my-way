@@ -161,6 +161,26 @@ async function run() {
     const seedStudentOne = seedStudents.rows.find((student) => student.student_code === 'S001');
     const seedStudentTwo = seedStudents.rows.find((student) => student.student_code === 'S002');
     if (!seedStudentOne || !seedStudentTwo) throw new Error('expected seeded students');
+
+    const classEntrySession = await nonAdminAgent.post(`/api/classes/${seed.classId}/entry-session`).expect(201);
+    if (!classEntrySession.body.entryToken || JSON.stringify(classEntrySession.body).includes('studentCode')) {
+      throw new Error('class entry session did not return a safe student-name payload');
+    }
+    const classEntryList = await request(app).get(`/api/class-entry/${classEntrySession.body.entryToken}`).expect(200);
+    if (
+      classEntryList.body.class.id !== seed.classId ||
+      classEntryList.body.students.length < 2 ||
+      JSON.stringify(classEntryList.body).includes('S001')
+    ) {
+      throw new Error('public class entry list did not return safe roster names');
+    }
+    const classEntryStart = await request(app)
+      .post(`/api/class-entry/${classEntrySession.body.entryToken}/students/${seedStudentTwo.id}/start`)
+      .expect(200);
+    if (classEntryStart.body.student.id !== seedStudentTwo.id || !classEntryStart.body.studentToken) {
+      throw new Error('class entry name selection did not issue a student token');
+    }
+
     const teacherLaunchCode = await nonAdminAgent.post(`/api/students/${seedStudentTwo.id}/launch-code`).expect(201);
     if (!/^[A-Z0-9]{10}$/.test(teacherLaunchCode.body.launchCode)) throw new Error('assigned teacher could not generate a launch code');
     await supportAgent.post(`/api/students/${seedStudentTwo.id}/launch-code`).expect(403);

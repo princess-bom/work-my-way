@@ -263,6 +263,16 @@ type ResolveAttemptRecord = {
   locked_until: Date | null;
 };
 
+type ClassEntrySessionRecord = {
+  id: string;
+  school_id: string;
+  class_id: string;
+  entry_token_hash: string;
+  started_by_teacher_id: string;
+  expires_at: Date;
+  ended_at: Date | null;
+};
+
 type FakeStudentRecord = {
   id: string;
   student_id: string;
@@ -288,9 +298,9 @@ class StudentLaunchDb implements Queryable {
     { id: 'teacher-2', school_id: 'school-1', role: 'teacher', display_name: '다른 교사' }
   ];
   readonly classes = [
-    { id: 'class-1', school_id: 'school-1', active: true },
-    { id: 'class-2', school_id: 'school-1', active: true },
-    { id: 'class-inactive', school_id: 'school-1', active: false }
+    { id: 'class-1', school_id: 'school-1', name: '1반', active: true },
+    { id: 'class-2', school_id: 'school-1', name: '2반', active: true },
+    { id: 'class-inactive', school_id: 'school-1', name: '닫힌 반', active: false }
   ];
   readonly memberships = [
     { class_id: 'class-1', teacher_id: 'teacher-1', membership_role: 'teacher', active: true },
@@ -323,6 +333,7 @@ class StudentLaunchDb implements Queryable {
     }
   ];
   readonly launchCodes: LaunchCodeRecord[] = [];
+  readonly classEntrySessions: ClassEntrySessionRecord[] = [];
   readonly attempts = new Map<string, ResolveAttemptRecord>();
   readonly auditActions: string[] = [];
 
@@ -368,6 +379,10 @@ class StudentLaunchDb implements Queryable {
       return rows(teacher ? [row<T>(teacher)] : []);
     }
     if (normalized.startsWith('update teacher_sessions set last_seen_at')) return rows([]);
+    if (normalized.startsWith('select id, school_id, name from classes')) {
+      const classRow = this.classes.find((item) => item.id === params[0] && item.school_id === params[1] && item.active);
+      return rows(classRow ? [row<T>(classRow)] : []);
+    }
     if (normalized.startsWith('select id from classes where id = $1')) {
       const classRow = this.classes.find((item) => item.id === params[0] && item.school_id === params[1] && item.active);
       return rows(classRow ? [row<T>({ id: classRow.id })] : []);
@@ -395,11 +410,60 @@ class StudentLaunchDb implements Queryable {
     }
     if (normalized.includes('select st.school_id, st.class_id, st.id as student_id, st.student_code')) {
       if (normalized.includes('where st.id = $1')) {
-        const student = this.students.find((item) => item.student_id === params[0] && item.school_id === params[1]);
+        const student = normalized.includes('and st.class_id = $3')
+          ? this.students.find((item) => item.student_id === params[0] && item.school_id === params[1] && item.class_id === params[2] && item.active)
+          : this.students.find((item) => item.student_id === params[0] && item.school_id === params[1]);
         return rows(student ? [row<T>(student)] : []);
       }
       const student = this.students.find((item) => item.class_id === params[0] && item.student_code === params[1]);
       return rows(student ? [row<T>(student)] : []);
+    }
+    if (normalized.startsWith('update class_entry_sessions set ended_at')) {
+      for (const session of this.classEntrySessions) {
+        if (session.class_id === params[0] && !session.ended_at && session.expires_at.getTime() > Date.now()) {
+          session.ended_at = new Date();
+        }
+      }
+      return rows([]);
+    }
+    if (normalized.startsWith('insert into class_entry_sessions')) {
+      const expiresAt = new Date(Date.now() + Number(params[4]) * 60_000);
+      const record: ClassEntrySessionRecord = {
+        id: `entry-${this.classEntrySessions.length + 1}`,
+        school_id: String(params[0]),
+        class_id: String(params[1]),
+        entry_token_hash: String(params[2]),
+        started_by_teacher_id: String(params[3]),
+        expires_at: expiresAt,
+        ended_at: null
+      };
+      this.classEntrySessions.push(record);
+      return rows([row<T>({ expires_at: expiresAt })]);
+    }
+    if (normalized.includes('from class_entry_sessions ces')) {
+      const session = this.classEntrySessions.find(
+        (item) => item.entry_token_hash === params[0] && !item.ended_at && item.expires_at.getTime() > Date.now()
+      );
+      if (!session) return rows([]);
+      const classRow = this.classes.find((item) => item.id === session.class_id && item.active);
+      const teacher = this.teachers.find((item) => item.id === session.started_by_teacher_id);
+      return rows(classRow && teacher ? [row<T>({
+        id: session.id,
+        school_id: session.school_id,
+        class_id: session.class_id,
+        class_name: classRow.name,
+        teacher_id: teacher.id,
+        teacher_role: teacher.role,
+        teacher_display_name: teacher.display_name,
+        expires_at: session.expires_at
+      })] : []);
+    }
+    if (normalized.startsWith('select id, class_id, display_name, class_number from students')) {
+      return rows(
+        this.students
+          .filter((item) => item.school_id === params[0] && item.class_id === params[1] && item.active)
+          .map((item) => row<T>({ id: item.id, class_id: item.class_id, display_name: item.display_name, class_number: item.class_number }))
+      );
     }
     if (normalized.startsWith('select id from students where school_id = $1 and student_code = $2 and id <> $3')) {
       const student = this.students.find((item) => item.school_id === params[0] && item.student_code === params[1] && item.id !== params[2]);
@@ -621,6 +685,50 @@ describe('local api app', () => {
     const db = new StudentLaunchDb();
     await request(createApiApp(db))
       .post('/api/students/student-1/launch-code')
+      .set('Cookie', `${teacherSessionCookieName}=${db.supportToken}`)
+      .expect(403, { error: 'launch_code_issue_denied' });
+  });
+
+  it('lets a teacher start class entry and lets students choose only their name', async () => {
+    const db = new StudentLaunchDb();
+    const app = createApiApp(db);
+
+    const started = await request(app)
+      .post('/api/classes/class-1/entry-session')
+      .set('Cookie', `${teacherSessionCookieName}=${db.teacherToken}`)
+      .expect(201);
+
+    expect(started.body.entryToken).toMatch(/^[A-Za-z0-9_-]{20,}$/);
+    expect(started.body.class).toEqual({ id: 'class-1', name: '1반' });
+    expect(started.body.students).toEqual([
+      { id: 'student-1', classId: 'class-1', displayName: '1번 학생', classNumber: '1' },
+      { id: 'student-2', classId: 'class-1', displayName: '2번 학생', classNumber: '2' }
+    ]);
+    expect(JSON.stringify(started.body)).not.toContain('S001');
+
+    const listed = await request(app)
+      .get(`/api/class-entry/${started.body.entryToken}`)
+      .expect(200);
+    expect(listed.body.students[0]).toEqual({ id: 'student-1', classId: 'class-1', displayName: '1번 학생', classNumber: '1' });
+    expect(JSON.stringify(listed.body)).not.toContain('studentCode');
+
+    const selected = await request(app)
+      .post(`/api/class-entry/${started.body.entryToken}/students/student-1/start`)
+      .expect(200);
+    expect(selected.body.student).toEqual({ id: 'student-1', classId: 'class-1' });
+    expect(verifyStudentToken(selected.body.studentToken)).toMatchObject({
+      schoolId: 'school-1',
+      classId: 'class-1',
+      studentId: 'student-1'
+    });
+    expect(db.auditActions).toContain('class_entry_session_started');
+    expect(db.auditActions).toContain('class_entry_student_started');
+  });
+
+  it('denies class-entry session start to support staff', async () => {
+    const db = new StudentLaunchDb();
+    await request(createApiApp(db))
+      .post('/api/classes/class-1/entry-session')
       .set('Cookie', `${teacherSessionCookieName}=${db.supportToken}`)
       .expect(403, { error: 'launch_code_issue_denied' });
   });

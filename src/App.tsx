@@ -40,6 +40,7 @@ import {
   createRecord,
   createRosterStudent,
   fetchClassStudents,
+  fetchClassEntrySession,
   fetchTeacherClasses,
   fetchTeacherMe,
   generateStudentLaunchCode,
@@ -50,13 +51,15 @@ import {
   mockCoachGateway,
   persistTeacherDecision,
   resolveStudentLaunch,
+  startClassEntryStudent,
+  startTeacherClassEntrySession,
   updateRosterStudent
 } from './adapters';
 import { appAssets, getJobVisual, getSceneImage, jobEidenWelcome } from './assets';
 import { speakText } from './avatarSpeech';
 import { getJob, getSceneAacOptions, getSceneNarration, initialState, jobs, stages } from './data';
 import type { AacOption, ApiStudentSessionContext, AppState, ExplorationRecord, JobId, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
-import type { TeacherClassSummary, TeacherRosterStudent, TeacherSession } from './adapters';
+import type { ClassEntryStudent, TeacherClassSummary, TeacherRosterStudent, TeacherSession } from './adapters';
 import { getCappedSceneTurnCount, getGuardedStudentSceneTurn, createGuardedSceneReply } from './guardedSceneTurns';
 import { LandingHero } from './LandingHero';
 import { DayExperience } from './StudentSceneTurnPanel';
@@ -105,8 +108,9 @@ type StudentLaunchPrefill = {
 };
 
 type ClassEntrySession = {
+  entryToken?: string;
   classLabel: string;
-  students: TeacherRosterStudent[];
+  students: ClassEntryStudent[];
 };
 
 type TeacherDashboardPageId = 'records' | 'students';
@@ -137,12 +141,39 @@ function getStudentLaunchPrefillFromLocation(): StudentLaunchPrefill | null {
   return getStudentLaunchPrefillFromSearch(window.location.search);
 }
 
+export function getClassEntryTokenFromSearch(search: string) {
+  const params = new URLSearchParams(search);
+  const token = params.get('classEntry');
+  return token?.trim().slice(0, 160) || null;
+}
+
+function getClassEntryTokenFromLocation() {
+  if (typeof window === 'undefined') return null;
+  return getClassEntryTokenFromSearch(window.location.search);
+}
+
 export function buildStudentEntryUrl(origin: string, pathname: string, input: StudentLaunchPrefill) {
   const url = new URL(pathname || '/', origin);
   url.searchParams.set('entry', 'student');
   url.searchParams.set('classId', input.classId);
   url.searchParams.set('studentCode', input.studentCode);
   return url.toString();
+}
+
+export function buildClassEntryUrl(origin: string, pathname: string, entryToken: string) {
+  const url = new URL(pathname || '/', origin);
+  url.searchParams.set('classEntry', entryToken);
+  return url.toString();
+}
+
+function replaceClassEntryTokenInLocation(entryToken: string) {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete('entry');
+  url.searchParams.delete('classId');
+  url.searchParams.delete('studentCode');
+  url.searchParams.set('classEntry', entryToken);
+  window.history.replaceState({ kkumideunView: 'landing' } satisfies AppHistoryState, '', url.toString());
 }
 
 export function getAppHistoryView(value: unknown): ViewId | null {
@@ -449,6 +480,8 @@ export function App() {
   const [summarySceneId, setSummarySceneId] = useState<string>(getSourceAlignmentScene().id);
   const [studentSessionStarting, setStudentSessionStarting] = useState(false);
   const [classEntrySession, setClassEntrySession] = useState<ClassEntrySession | null>(null);
+  const [classEntryToken, setClassEntryToken] = useState<string | null>(() => getClassEntryTokenFromLocation());
+  const [classEntryLoading, setClassEntryLoading] = useState(false);
   const [classEntryModalOpen, setClassEntryModalOpen] = useState(false);
   const [classEntryJobId, setClassEntryJobId] = useState<JobId | null>(null);
   const [classEntryStudentId, setClassEntryStudentId] = useState<string | null>(null);
@@ -467,6 +500,10 @@ export function App() {
     writeHistoryView(state.view, 'replace');
     const handlePopState = (event: PopStateEvent) => {
       const view = getAppHistoryView(event.state) ?? 'landing';
+      setClassEntryLoading(false);
+      setClassEntryModalOpen(false);
+      setClassEntryStudentId(null);
+      setClassEntryMessage(null);
       setState((current) => ({
         ...current,
         view,
@@ -556,11 +593,14 @@ export function App() {
 
   function prepareClassEntrySession(session: ClassEntrySession) {
     setClassEntrySession(session);
+    setClassEntryToken(session.entryToken ?? null);
+    setClassEntryLoading(false);
     setClassEntryModalOpen(false);
     setClassEntryJobId(null);
     setClassEntryStudentId(null);
     setClassEntryMessage(null);
     writeHistoryView('landing', 'push');
+    if (session.entryToken) replaceClassEntryTokenInLocation(session.entryToken);
     setState((current) => ({
       ...current,
       view: 'landing',
@@ -573,16 +613,60 @@ export function App() {
     scrollToPageTop();
   }
 
-  async function enterDayFromIntro() {
-    if (!state.studentSession) {
-      if (classEntrySession?.students.length) {
-        setClassEntryJobId(state.selectedJobId);
-        setClassEntryMessage(null);
-        setClassEntryModalOpen(true);
+  async function openClassEntryNamePicker() {
+    setClassEntryJobId(state.selectedJobId);
+    setClassEntryMessage(null);
+
+    if (classEntrySession?.students.length) {
+      setClassEntryModalOpen(true);
+      return;
+    }
+
+    setClassEntrySession((current) => current ?? { classLabel: '학생 이름 선택', students: [] });
+    setClassEntryModalOpen(true);
+    setClassEntryLoading(true);
+
+    try {
+      const entryToken = classEntrySession?.entryToken ?? classEntryToken ?? getClassEntryTokenFromLocation();
+      if (entryToken) {
+        const entrySession = await fetchClassEntrySession(entryToken);
+        setClassEntryToken(entryToken);
+        setClassEntrySession({
+          entryToken,
+          classLabel: entrySession.class.name,
+          students: entrySession.students
+        });
+        if (!entrySession.students.length) {
+          setClassEntryMessage('등록된 학생이 없습니다. 선생님이 학생 관리에서 학생을 먼저 등록해야 합니다.');
+        }
         return;
       }
 
-      go('launch');
+      const nextClasses = await fetchTeacherClasses();
+      const nextClass = nextClasses.find((item) => item.active) ?? nextClasses[0];
+
+      if (!nextClass) {
+        setClassEntrySession({ classLabel: '학생 이름 선택', students: [] });
+        setClassEntryMessage('아직 등록된 반이 없습니다. 선생님이 학생 관리에서 반과 학생을 먼저 등록해야 합니다.');
+        return;
+      }
+
+      const nextStudents = (await fetchClassStudents(nextClass.id)).filter((student) => student.active);
+      setClassEntrySession({ classLabel: nextClass.name, students: nextStudents });
+      if (!nextStudents.length) {
+        setClassEntryMessage('등록된 학생이 없습니다. 선생님이 학생 관리에서 학생을 먼저 등록해야 합니다.');
+      }
+    } catch {
+      setClassEntrySession({ classLabel: '학생 이름 선택', students: [] });
+      setClassEntryMessage('학생 이름 목록을 불러오지 못했습니다. 선생님 화면에서 학생 관리를 먼저 열어 주세요.');
+    } finally {
+      setClassEntryLoading(false);
+    }
+  }
+
+  async function enterDayFromIntro() {
+    if (!state.studentSession) {
+      await openClassEntryNamePicker();
       return;
     }
 
@@ -615,7 +699,7 @@ export function App() {
     }
   }
 
-  async function startClassEntryStudentFlow(student: TeacherRosterStudent) {
+  async function startClassEntryStudentFlow(student: ClassEntryStudent) {
     if (!classEntrySession || classEntryStudentId) return;
 
     const nextJobId = classEntryJobId ?? state.selectedJobId;
@@ -624,12 +708,9 @@ export function App() {
     setClassEntryMessage(null);
     setStudentSessionStarting(true);
     try {
-      const issuedCode = await generateStudentLaunchCode(student.id);
-      const context = await resolveStudentLaunch({
-        classId: student.classId,
-        studentCode: student.studentCode,
-        launchCode: issuedCode.launchCode
-      });
+      const context = classEntrySession.entryToken
+        ? await startClassEntryStudent(classEntrySession.entryToken, student.id)
+        : await startClassEntryStudentWithTeacherSession(student);
       const sessionId = await createExplorationSession(context, nextJobId);
       const startedContext: ApiStudentSessionContext = { ...context, sessionId };
       writeHistoryView('day', 'push');
@@ -657,6 +738,19 @@ export function App() {
       setClassEntryStudentId(null);
       setStudentSessionStarting(false);
     }
+  }
+
+  async function startClassEntryStudentWithTeacherSession(student: ClassEntryStudent) {
+    if (!('studentCode' in student) || typeof student.studentCode !== 'string') {
+      throw new Error('student_code_required');
+    }
+
+    const issuedCode = await generateStudentLaunchCode(student.id);
+    return resolveStudentLaunch({
+      classId: student.classId,
+      studentCode: student.studentCode,
+      launchCode: issuedCode.launchCode
+    });
   }
 
   function currentApiStudentSession() {
@@ -810,17 +904,19 @@ export function App() {
           />
         )}
         {state.view === 'launch' && (
-          <StudentLaunchEntry
+          <JobIntro
+            key={`${job.id}-launch`}
             job={job}
-            onBack={() => go('landing')}
-            onTeacher={() => go('teacher')}
+            pending={studentSessionStarting || classEntryLoading}
+            onNext={enterDayFromIntro}
+            onOtherJob={showNextIntroJob}
           />
         )}
         {state.view === 'intro' && (
           <JobIntro
             key={job.id}
             job={job}
-            pending={studentSessionStarting}
+            pending={studentSessionStarting || classEntryLoading}
             onNext={enterDayFromIntro}
             onOtherJob={showNextIntroJob}
           />
@@ -906,6 +1002,7 @@ export function App() {
         <ClassStudentEntryModal
           classLabel={classEntrySession.classLabel}
           students={classEntrySession.students}
+          loading={classEntryLoading}
           startingStudentId={classEntryStudentId}
           message={classEntryMessage}
           onClose={() => {
@@ -1007,64 +1104,6 @@ function StudentUtilityNav({
         </button>
       )}
     </nav>
-  );
-}
-
-function StudentLaunchEntry({
-  job,
-  onBack,
-  onTeacher
-}: {
-  job: ReturnType<typeof getJob>;
-  onBack: () => void;
-  onTeacher: () => void;
-}) {
-  return (
-    <main className="student-launch-screen" aria-labelledby="student-launch-title">
-      <section className="student-launch-copy">
-        <button className="summary-back-button" type="button" onClick={onBack} aria-label="처음 화면으로 돌아가기">
-          <ChevronLeft size={22} />
-        </button>
-        <span className="section-label">{job.title} 학생 입장</span>
-        <h2 id="student-launch-title">선생님이 학생 입장을 시작해요</h2>
-        <p>학생은 아이디나 코드를 입력하지 않고, 클래스 화면에서 본인 이름만 선택합니다.</p>
-      </section>
-
-      <section className="student-launch-panel" aria-label="학생 입장 안내">
-        <div className="student-launch-secure">
-          <ShieldAlert size={26} />
-          <div>
-            <strong>클래스 이름 선택 방식</strong>
-            <span>선생님이 학생 관리에서 학생을 미리 등록하고, 클래스 입장 시작을 누르면 이름 선택 화면이 열립니다.</span>
-          </div>
-        </div>
-
-        <div className="student-launch-teacher-steps" aria-label="입장 순서">
-          <div>
-            <strong>1</strong>
-            <span>교사가 학생 관리에서 반과 학생을 확인합니다.</span>
-          </div>
-          <div>
-            <strong>2</strong>
-            <span>교사가 클래스 입장 시작을 누릅니다.</span>
-          </div>
-          <div>
-            <strong>3</strong>
-            <span>학생은 하루 체험하기 후 본인 이름만 선택합니다.</span>
-          </div>
-        </div>
-
-        <div className="student-launch-action-stack">
-          <button className="primary-cta" type="button" onClick={onTeacher}>
-            <Users size={20} />
-            교사 학생 관리로 가기
-          </button>
-          <button className="secondary-cta" type="button" onClick={onBack}>
-            처음 화면으로
-          </button>
-        </div>
-      </section>
-    </main>
   );
 }
 
@@ -1709,8 +1748,8 @@ function classNumberFromDraft(draft: RosterDraft) {
   return trimmed || null;
 }
 
-function studentLabel(student: TeacherRosterStudent) {
-  return student.displayName || student.studentCode;
+function studentLabel(student: ClassEntryStudent) {
+  return student.displayName || '학생';
 }
 
 function buildStudentDraftPayload(draft: RosterDraft) {
@@ -1724,17 +1763,19 @@ function buildStudentDraftPayload(draft: RosterDraft) {
 function ClassStudentEntryModal({
   classLabel,
   students,
+  loading,
   startingStudentId,
   message,
   onClose,
   onSelect
 }: {
   classLabel: string;
-  students: TeacherRosterStudent[];
+  students: ClassEntryStudent[];
+  loading: boolean;
   startingStudentId: string | null;
   message: string | null;
   onClose: () => void;
-  onSelect: (student: TeacherRosterStudent) => void;
+  onSelect: (student: ClassEntryStudent) => void;
 }) {
   const firstStudentButtonRef = useRef<HTMLButtonElement | null>(null);
   const modalRef = useRef<HTMLElement | null>(null);
@@ -1802,27 +1843,39 @@ function ClassStudentEntryModal({
           </button>
         </header>
 
-        <div className="class-entry-student-grid" aria-label="학생 이름 선택">
-          {students.map((student, index) => {
-            const starting = startingStudentId === student.id;
-            return (
-              <button
-                key={student.id}
-                ref={index === 0 ? firstStudentButtonRef : undefined}
-                type="button"
-                onClick={() => onSelect(student)}
-                disabled={Boolean(startingStudentId)}
-              >
-                <UserCheck size={22} />
-                <strong>{studentLabel(student)}</strong>
-                <span>{student.classNumber ? `${student.classNumber}번` : '학생'}</span>
-                {starting && <em>시작 중</em>}
-              </button>
-            );
-          })}
-        </div>
+        {loading ? (
+          <div className="class-entry-alert is-loading" role="status">
+            <RefreshCw size={20} />
+            <span>학생 이름을 불러오는 중입니다.</span>
+          </div>
+        ) : students.length ? (
+          <div className="class-entry-student-grid" aria-label="학생 이름 선택">
+            {students.map((student, index) => {
+              const starting = startingStudentId === student.id;
+              return (
+                <button
+                  key={student.id}
+                  ref={index === 0 ? firstStudentButtonRef : undefined}
+                  type="button"
+                  onClick={() => onSelect(student)}
+                  disabled={Boolean(startingStudentId)}
+                >
+                  <UserCheck size={22} />
+                  <strong>{studentLabel(student)}</strong>
+                  <span>{student.classNumber ? `${student.classNumber}번` : '학생'}</span>
+                  {starting && <em>시작 중</em>}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="class-entry-alert" role="status">
+            <AlertTriangle size={20} />
+            <span>선택할 학생 이름이 없습니다.</span>
+          </div>
+        )}
 
-        {message && (
+        {message && !loading && (
           <div className="class-entry-alert" role="alert">
             <AlertTriangle size={20} />
             <span>{message}</span>
@@ -1848,6 +1901,7 @@ function TeacherStudentManagement({
   const [notice, setNotice] = useState<RosterNotice | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [classEntryStarting, setClassEntryStarting] = useState(false);
 
   const selectedClass = classes.find((item) => item.id === selectedClassId);
   const rosterWritable = canManageRoster(teacher?.role);
@@ -1978,6 +2032,25 @@ function TeacherStudentManagement({
     }
   }
 
+  async function handleClassEntryStart() {
+    if (!selectedClass || !rosterWritable || activeStudents.length === 0) return;
+
+    setClassEntryStarting(true);
+    setNotice(null);
+    try {
+      const entrySession = await startTeacherClassEntrySession(selectedClass.id);
+      setClassEntryStarting(false);
+      onClassEntryReady({
+        entryToken: entrySession.entryToken,
+        classLabel: entrySession.class.name,
+        students: entrySession.students
+      });
+    } catch (error) {
+      setNotice({ kind: 'error', message: getRosterErrorMessage(error) });
+      setClassEntryStarting(false);
+    }
+  }
+
   return (
     <section className="teacher-student-management" aria-label="학생 관리">
       <header className="student-management-head">
@@ -1989,16 +2062,11 @@ function TeacherStudentManagement({
           <button
             className="primary-cta compact"
             type="button"
-            onClick={() => {
-              onClassEntryReady({
-                classLabel: selectedClass?.name ?? '선택한 반',
-                students: activeStudents
-              });
-            }}
-            disabled={!rosterWritable || status !== 'ready' || activeStudents.length === 0}
+            onClick={handleClassEntryStart}
+            disabled={!rosterWritable || status !== 'ready' || activeStudents.length === 0 || classEntryStarting}
           >
             <UserCheck size={18} />
-            클래스 입장 시작
+            {classEntryStarting ? '입장 준비 중' : '클래스 입장 시작'}
           </button>
           <button className="secondary-cta compact" type="button" onClick={loadRosterPage}>
             <RefreshCw size={18} />

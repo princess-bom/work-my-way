@@ -9,6 +9,7 @@ import {
   createRecord,
   createRosterStudent,
   fetchClassStudents,
+  fetchClassEntrySession,
   fetchTeacherClasses,
   fetchTeacherMe,
   generateStudentLaunchCode,
@@ -17,14 +18,18 @@ import {
   mockCoachGateway,
   persistTeacherDecision,
   resolveStudentLaunch,
+  startClassEntryStudent,
+  startTeacherClassEntrySession,
   updateRosterStudent
 } from './adapters';
 import {
   applyResolvedStudentContext,
   applyStartedStudentSession,
+  buildClassEntryUrl,
   buildStudentEntryUrl,
   buildTeacherSessionSummary,
   getAppHistoryView,
+  getClassEntryTokenFromSearch,
   getIntroContent,
   getNextIntroJobId,
   getSummaryEncouragement,
@@ -137,6 +142,15 @@ describe('student exploration copy and records', () => {
       classId: 'class 1',
       studentCode: 'S001'
     });
+  });
+
+  it('builds class-entry links without colliding with old student entry prefill links', () => {
+    const url = buildClassEntryUrl('https://school.example', '/app', 'entry-token-1');
+
+    expect(url).toBe('https://school.example/app?classEntry=entry-token-1');
+    expect(getClassEntryTokenFromSearch(new URL(url).search)).toBe('entry-token-1');
+    expect(getStudentLaunchPrefillFromSearch(new URL(url).search)).toBeNull();
+    expect(getClassEntryTokenFromSearch('?entry=student&classId=class-1&studentCode=S001')).toBeNull();
   });
 
   it('flags teacher-dashboard ranking or scoring copy as banned', () => {
@@ -603,6 +617,27 @@ describe('student exploration copy and records', () => {
           student: { id: 'student-2', classId: 'class-1' }
         }), { status: 201 });
       }
+      if (url === '/api/classes/class-1/entry-session') {
+        return new Response(JSON.stringify({
+          entryToken: 'entry-token-1',
+          expiresAt: '2026-06-22T16:00:00.000Z',
+          class: { id: 'class-1', name: '1반' },
+          students: [{ id: 'student-1', classId: 'class-1', displayName: '홍길동', classNumber: '1' }]
+        }), { status: 201 });
+      }
+      if (url === '/api/class-entry/entry-token-1') {
+        return new Response(JSON.stringify({
+          expiresAt: '2026-06-22T16:00:00.000Z',
+          class: { id: 'class-1', name: '1반' },
+          students: [{ id: 'student-1', classId: 'class-1', displayName: '홍길동', classNumber: '1' }]
+        }), { status: 200 });
+      }
+      if (url === '/api/class-entry/entry-token-1/students/student-1/start') {
+        return new Response(JSON.stringify({
+          student: { id: 'student-1', classId: 'class-1' },
+          studentToken: 'student-token-from-entry'
+        }), { status: 200 });
+      }
       return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
     }) as typeof fetch;
 
@@ -621,14 +656,32 @@ describe('student exploration copy and records', () => {
       active: false
     })).resolves.toMatchObject({ active: false, displayName: '수정 학생' });
     await expect(generateStudentLaunchCode('student-2')).resolves.toMatchObject({ launchCode: 'ABCD-1234' });
+    await expect(startTeacherClassEntrySession('class-1')).resolves.toMatchObject({
+      entryToken: 'entry-token-1',
+      students: [{ displayName: '홍길동' }]
+    });
+    await expect(fetchClassEntrySession('entry-token-1')).resolves.toMatchObject({
+      class: { id: 'class-1' },
+      students: [{ id: 'student-1' }]
+    });
+    await expect(startClassEntryStudent('entry-token-1', 'student-1')).resolves.toMatchObject({
+      mode: 'api',
+      classId: 'class-1',
+      studentId: 'student-1',
+      studentToken: 'student-token-from-entry'
+    });
 
     const createCall = fetchCalls.find(([url, init]) => String(url) === '/api/classes/class-1/students' && init?.method === 'POST');
     const updateCall = fetchCalls.find(([url, init]) => String(url) === '/api/students/student-2' && init?.method === 'PATCH');
     const launchCall = fetchCalls.find(([url, init]) => String(url) === '/api/students/student-2/launch-code' && init?.method === 'POST');
+    const entryStartCall = fetchCalls.find(([url, init]) => String(url) === '/api/classes/class-1/entry-session' && init?.method === 'POST');
+    const classEntryStudentCall = fetchCalls.find(([url, init]) => String(url) === '/api/class-entry/entry-token-1/students/student-1/start' && init?.method === 'POST');
 
     expect(createCall).toBeDefined();
     expect(updateCall).toBeDefined();
     expect(launchCall).toBeDefined();
+    expect(entryStartCall).toBeDefined();
+    expect(classEntryStudentCall).toBeDefined();
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ studentCode: 'S002', displayName: '새 학생', classNumber: '2' });
     expect(JSON.parse(String(updateCall?.[1]?.body))).toMatchObject({ active: false });
   });

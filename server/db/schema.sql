@@ -106,6 +106,18 @@ create table student_resolve_attempts (
   unique (class_id, student_code, ip_fingerprint_hash)
 );
 
+create table class_entry_sessions (
+  id uuid primary key default gen_random_uuid(),
+  school_id uuid not null references schools(id) on delete cascade,
+  class_id uuid not null references classes(id) on delete cascade,
+  entry_token_hash text not null unique,
+  started_by_teacher_id uuid not null references teacher_accounts(id) on delete restrict,
+  expires_at timestamptz not null,
+  ended_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table jobs (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -450,6 +462,8 @@ create index idx_students_class on students(class_id);
 create index idx_student_launch_codes_student_active on student_launch_codes(student_id, expires_at desc) where used_at is null and revoked_at is null;
 create index idx_student_launch_codes_class_student on student_launch_codes(class_id, student_id, created_at desc);
 create index idx_student_resolve_attempts_locked on student_resolve_attempts(locked_until) where locked_until is not null;
+create index idx_class_entry_sessions_token_active on class_entry_sessions(entry_token_hash) where ended_at is null;
+create index idx_class_entry_sessions_class_active on class_entry_sessions(class_id, expires_at desc) where ended_at is null;
 create index idx_job_scenes_job on job_scenes(job_id, step_no);
 create index idx_aac_options_scene on aac_options(job_scene_id, sort_order);
 create index idx_learning_units_job on job_learning_units(job_id, sort_order);
@@ -485,6 +499,10 @@ for each row execute function set_updated_at();
 
 create trigger student_resolve_attempts_set_updated_at
 before update on student_resolve_attempts
+for each row execute function set_updated_at();
+
+create trigger class_entry_sessions_set_updated_at
+before update on class_entry_sessions
 for each row execute function set_updated_at();
 
 create trigger jobs_set_updated_at

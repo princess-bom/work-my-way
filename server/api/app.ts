@@ -49,6 +49,17 @@ type StudentLaunchCodeRow = {
   revoked_at: string | Date | null;
 };
 
+type ClassEntrySessionRow = {
+  id: string;
+  school_id: string;
+  class_id: string;
+  class_name: string;
+  teacher_id: string;
+  teacher_role: TeacherContext['role'];
+  teacher_display_name: string;
+  expires_at: string | Date;
+};
+
 type ApiRequest = Request & {
   teacher?: TeacherContext;
 };
@@ -137,6 +148,7 @@ const evidenceLevels = new Set(['not_observed', 'emerging', 'with_support', 'ind
 const candidateStatuses = new Set(['needs_review', 'support_needed', 'observed']);
 const aiDecisionAppliedTargets = new Set(['mastery_review', 'teacher_log', 'next_lesson_plan', 'interview_scenario']);
 const studentLaunchCodeTtlMinutes = 15;
+const classEntrySessionTtlMinutes = 240;
 const studentResolveLockoutThreshold = 10;
 
 type MasteryEvidenceCandidate = {
@@ -370,6 +382,15 @@ function studentResponse(row: Record<string, unknown>) {
   };
 }
 
+function publicStudentEntryResponse(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    classId: row.class_id,
+    displayName: row.display_name,
+    classNumber: row.class_number
+  };
+}
+
 async function oneOrNull<T extends Record<string, unknown>>(db: Queryable, sql: string, params: unknown[]) {
   const result = await db.query<T>(sql, params);
   return result.rows[0] ?? null;
@@ -463,6 +484,36 @@ function createStudentLaunchCode() {
     code += randomBytes(8).toString('base64url').replace(/[^a-z0-9]/gi, '').toUpperCase();
   }
   return code.slice(0, 10);
+}
+
+function createClassEntryToken() {
+  return randomBytes(18).toString('base64url');
+}
+
+async function findActiveClassEntrySession(db: Queryable, entryToken: string) {
+  return oneOrNull<ClassEntrySessionRow>(
+    db,
+    `
+      select ces.id,
+             ces.school_id,
+             ces.class_id,
+             c.name as class_name,
+             ta.id as teacher_id,
+             ta.role as teacher_role,
+             ta.display_name as teacher_display_name,
+             ces.expires_at
+      from class_entry_sessions ces
+      join classes c on c.id = ces.class_id
+      join teacher_accounts ta on ta.id = ces.started_by_teacher_id
+      where ces.entry_token_hash = $1
+        and ces.ended_at is null
+        and ces.expires_at > now()
+        and c.active = true
+        and ta.active = true
+      limit 1
+    `,
+    [hashToken(entryToken)]
+  );
 }
 
 function studentResolveFingerprint(req: Request, classId: string, studentCode: string) {
@@ -806,6 +857,72 @@ export function createApiApp(db: Queryable = getPool()) {
   );
 
   app.post(
+    '/api/classes/:id/entry-session',
+    asyncRoute(async (req, res) => {
+      const teacher = await requireTeacher(req, db);
+      const classId = routeParam(req, 'id');
+      await assertLaunchCodeIssueAccess(db, teacher, classId);
+
+      const classRow = await oneOrNull<Record<string, unknown>>(
+        db,
+        'select id, school_id, name from classes where id = $1 and school_id = $2 and active = true limit 1',
+        [classId, teacher.schoolId]
+      );
+      if (!classRow) throw new ApiError(404, 'class_not_found');
+
+      const entryToken = createClassEntryToken();
+      const expiresAt = await withTransaction(db, async (client) => {
+        await client.query(
+          `
+            update class_entry_sessions
+            set ended_at = now()
+            where class_id = $1 and ended_at is null and expires_at > now()
+          `,
+          [classId]
+        );
+        const created = await client.query<{ expires_at: string | Date }>(
+          `
+            insert into class_entry_sessions(
+              school_id,
+              class_id,
+              entry_token_hash,
+              started_by_teacher_id,
+              expires_at
+            )
+            values ($1, $2, $3, $4, now() + ($5::text || ' minutes')::interval)
+            returning expires_at
+          `,
+          [teacher.schoolId, classId, hashToken(entryToken), teacher.id, String(classEntrySessionTtlMinutes)]
+        );
+        await audit(client, teacher, 'class_entry_session_started', 'class', classId, {
+          expiresAt: created.rows[0].expires_at
+        });
+        return created.rows[0].expires_at;
+      });
+
+      const students = await db.query<Record<string, unknown>>(
+        `
+          select id, class_id, display_name, class_number
+          from students
+          where school_id = $1 and class_id = $2 and active = true
+          order by nullif(regexp_replace(coalesce(class_number, ''), '[^0-9]', '', 'g'), '')::integer nulls last, display_name, id
+        `,
+        [teacher.schoolId, classId]
+      );
+
+      json(res, 201, {
+        entryToken,
+        expiresAt,
+        class: {
+          id: classRow.id,
+          name: classRow.name
+        },
+        students: students.rows.map(publicStudentEntryResponse)
+      });
+    })
+  );
+
+  app.post(
     '/api/classes/:id/students',
     asyncRoute(async (req, res) => {
       const teacher = await requireTeacher(req, db);
@@ -1097,6 +1214,84 @@ export function createApiApp(db: Queryable = getPool()) {
           id: student.student_id,
           classId: student.class_id
         }
+      });
+    })
+  );
+
+  app.get(
+    '/api/class-entry/:entryToken',
+    asyncRoute(async (req, res) => {
+      const entryToken = routeParam(req, 'entryToken');
+      const session = await findActiveClassEntrySession(db, entryToken);
+      if (!session) throw new ApiError(404, 'class_entry_session_not_found');
+
+      const students = await db.query<Record<string, unknown>>(
+        `
+          select id, class_id, display_name, class_number
+          from students
+          where school_id = $1 and class_id = $2 and active = true
+          order by nullif(regexp_replace(coalesce(class_number, ''), '[^0-9]', '', 'g'), '')::integer nulls last, display_name, id
+        `,
+        [session.school_id, session.class_id]
+      );
+
+      json(res, 200, {
+        class: {
+          id: session.class_id,
+          name: session.class_name
+        },
+        expiresAt: session.expires_at,
+        students: students.rows.map(publicStudentEntryResponse)
+      });
+    })
+  );
+
+  app.post(
+    '/api/class-entry/:entryToken/students/:studentId/start',
+    studentResolveLimit,
+    asyncRoute(async (req, res) => {
+      const entryToken = routeParam(req, 'entryToken');
+      const studentId = routeParam(req, 'studentId');
+      const session = await findActiveClassEntrySession(db, entryToken);
+      if (!session) throw new ApiError(404, 'class_entry_session_not_found');
+
+      const student = await oneOrNull<StudentResolveTarget>(
+        db,
+        `
+          select st.school_id, st.class_id, st.id as student_id, st.student_code
+          from students st
+          join classes c on c.id = st.class_id
+          where st.id = $1
+            and st.school_id = $2
+            and st.class_id = $3
+            and st.active = true
+            and c.active = true
+          limit 1
+        `,
+        [studentId, session.school_id, session.class_id]
+      );
+      if (!student) throw new ApiError(404, 'student_not_found');
+
+      await audit(
+        db,
+        {
+          id: session.teacher_id,
+          schoolId: session.school_id,
+          role: session.teacher_role,
+          displayName: session.teacher_display_name
+        },
+        'class_entry_student_started',
+        'student',
+        student.student_id,
+        { classId: student.class_id }
+      );
+
+      json(res, 200, {
+        student: {
+          id: student.student_id,
+          classId: student.class_id
+        },
+        studentToken: signStudentToken({ schoolId: student.school_id, classId: student.class_id, studentId: student.student_id })
       });
     })
   );

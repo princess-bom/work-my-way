@@ -58,6 +58,23 @@ export type TeacherLaunchCodeResult = {
   };
 };
 
+export type ClassEntryStudent = {
+  id: string;
+  classId: string;
+  displayName: string;
+  classNumber?: string | null;
+};
+
+export type ClassEntrySessionResult = {
+  entryToken?: string;
+  expiresAt?: string;
+  class: {
+    id: string;
+    name: string;
+  };
+  students: ClassEntryStudent[];
+};
+
 export type StudentLaunchResolveInput = {
   classId: string;
   studentCode: string;
@@ -303,6 +320,35 @@ export async function fetchTeacherClasses(): Promise<TeacherClassSummary[]> {
 export async function fetchClassStudents(classId: string): Promise<TeacherRosterStudent[]> {
   const payload = await apiRequest<{ students: TeacherRosterStudent[] }>(`/api/classes/${encodeURIComponent(classId)}/students`);
   return payload.students;
+}
+
+export async function startTeacherClassEntrySession(classId: string): Promise<ClassEntrySessionResult & { entryToken: string }> {
+  return apiRequest<ClassEntrySessionResult & { entryToken: string }>(`/api/classes/${encodeURIComponent(classId)}/entry-session`, {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
+}
+
+export async function fetchClassEntrySession(entryToken: string): Promise<ClassEntrySessionResult> {
+  return apiRequest<ClassEntrySessionResult>(`/api/class-entry/${encodeURIComponent(entryToken)}`);
+}
+
+export async function startClassEntryStudent(entryToken: string, studentId: string): Promise<ApiStudentSessionContext> {
+  const payload = await apiRequest<StudentLaunchResolveResult>(
+    `/api/class-entry/${encodeURIComponent(entryToken)}/students/${encodeURIComponent(studentId)}/start`,
+    {
+      method: 'POST',
+      body: JSON.stringify({})
+    }
+  );
+
+  return {
+    mode: 'api',
+    classId: payload.student.classId,
+    studentId: payload.student.id,
+    studentToken: payload.studentToken,
+    startedAt: new Date().toISOString()
+  };
 }
 
 export async function createRosterStudent(classId: string, input: TeacherRosterStudentInput): Promise<TeacherRosterStudent> {
