@@ -55,7 +55,7 @@ import {
 import { appAssets, getJobVisual, getSceneImage, jobEidenWelcome } from './assets';
 import { speakText } from './avatarSpeech';
 import { getJob, getSceneAacOptions, getSceneNarration, initialState, jobs, stages } from './data';
-import type { AacOption, ApiStudentSessionContext, AppState, ExplorationRecord, JobId, StudentSessionContext, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
+import type { AacOption, ApiStudentSessionContext, AppState, ExplorationRecord, JobId, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
 import type { TeacherClassSummary, TeacherRosterStudent, TeacherSession } from './adapters';
 import { getCappedSceneTurnCount, getGuardedStudentSceneTurn, createGuardedSceneReply } from './guardedSceneTurns';
 import { LandingHero } from './LandingHero';
@@ -582,21 +582,7 @@ export function App() {
         return;
       }
 
-      const demoSession: StudentSessionContext = {
-        mode: 'demo',
-        startedAt: new Date().toISOString()
-      };
-      writeHistoryView('day', 'push');
-      setState((current) => ({
-        ...current,
-        view: 'day',
-        studentSession: demoSession,
-        teacherEvidenceTarget: undefined,
-        visualSupportOpen: false,
-        resting: false,
-        replaying: false
-      }));
-      scrollToPageTop();
+      go('launch');
       return;
     }
 
