@@ -10348,73 +10348,6 @@ h3 {
   line-height: 1.35;
 }
 
-.student-launch-form {
-  display: grid;
-  gap: 12px;
-}
-
-.student-launch-form label {
-  display: grid;
-  gap: 6px;
-}
-
-.student-launch-form label span {
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 840;
-}
-
-.student-launch-form input {
-  width: 100%;
-  min-height: 56px;
-  min-width: 0;
-  padding: 0 16px;
-  border: 1px solid rgba(93, 72, 50, 0.2);
-  border-radius: 18px;
-  background: #fffdfa;
-  color: var(--text-strong);
-  font: inherit;
-  font-size: 17px;
-  font-weight: 820;
-}
-
-.student-launch-form .primary-cta {
-  width: 100%;
-  min-height: 60px;
-  margin-top: 4px;
-}
-
-.student-launch-prepared {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 0;
-}
-
-.student-launch-prepared div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid rgba(93, 72, 50, 0.16);
-  border-radius: 16px;
-  background: #fff8ef;
-}
-
-.student-launch-prepared span {
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 820;
-}
-
-.student-launch-prepared strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: var(--text-strong);
-  font-size: 18px;
-  line-height: 1.2;
-}
-
 .student-launch-alert {
   display: flex;
   align-items: center;
@@ -10497,7 +10430,6 @@ h3 {
 .student-management-controls,
 .student-create-form,
 .student-roster-row,
-.student-launch-code-panel,
 .student-management-alert {
   border: 1px solid var(--line-soft);
   background: #fff;
@@ -10529,8 +10461,7 @@ h3 {
 
 .student-management-head span,
 .student-create-form span,
-.student-roster-fields span,
-.student-launch-code-panel span {
+.student-roster-fields span {
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 820;
@@ -10790,115 +10721,6 @@ h3 {
   font-weight: 780;
   line-height: 1.35;
   word-break: keep-all;
-}
-
-.student-launch-code-panel {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border-color: rgba(252, 114, 4, 0.42);
-  border-radius: 20px;
-  background: #fff8ef;
-}
-
-.student-launch-code-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-}
-
-.student-launch-code-main > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.student-launch-code-panel strong {
-  color: #8c4000;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1;
-  letter-spacing: 0;
-}
-
-.student-launch-code-panel small {
-  color: var(--text-muted);
-  font-weight: 740;
-  line-height: 1.35;
-  word-break: keep-all;
-}
-
-.student-launch-code-panel button {
-  min-width: 48px;
-  min-height: 48px;
-  border: 1px solid var(--line-soft);
-  border-radius: 50%;
-  background: #fff;
-  color: var(--text-strong);
-}
-
-.student-launch-link-tools {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding-top: 12px;
-  border-top: 1px solid rgba(93, 72, 50, 0.13);
-}
-
-.student-launch-link-tools label {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-
-.student-launch-link-tools input {
-  width: 100%;
-  min-height: 46px;
-  min-width: 0;
-  padding: 0 12px;
-  border: 1px solid rgba(93, 72, 50, 0.18);
-  border-radius: 14px;
-  background: #fffdfa;
-  color: var(--text-strong);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 740;
-}
-
-.student-launch-link-tools > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-}
-
-.student-launch-link-tools button,
-.student-launch-link-tools a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid rgba(252, 114, 4, 0.26);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--text-strong);
-  font-weight: 840;
-  line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.student-launch-link-tools button {
-  min-width: 0;
-  min-height: 44px;
-}
-
-.student-launch-link-tools a {
-  background: var(--accent-orange);
-  color: #fff;
 }
 
 .student-create-form {
@@ -11167,8 +10989,7 @@ h3 {
   .student-management-head,
   .student-management-controls,
   .student-create-form,
-  .student-roster-row,
-  .student-launch-code-panel {
+  .student-roster-row {
     padding: 14px;
     border-radius: 18px;
   }

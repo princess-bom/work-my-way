@@ -102,7 +102,7 @@ describe('student exploration copy and records', () => {
     expect(restored.replaying).toBe(false);
   });
 
-  it('starts a teacher-prepared student entry link on the launch step', () => {
+  it('starts at landing even when an old student entry link is present', () => {
     const prefill = getStudentLaunchPrefillFromSearch('?entry=student&classId=class-1&studentCode=S001');
     const restored = mergePersistedStateForInitialLoad({
       ...initialState,
@@ -114,7 +114,7 @@ describe('student exploration copy and records', () => {
     }, prefill);
 
     expect(prefill).toEqual({ classId: 'class-1', studentCode: 'S001' });
-    expect(restored.view).toBe('launch');
+    expect(restored.view).toBe('landing');
     expect(restored.studentSession).toBeUndefined();
   });
 

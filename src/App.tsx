@@ -10,16 +10,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Coffee,
-  Copy,
   ClipboardList,
   Clock3,
-  ExternalLink,
   Filter,
   Headphones,
   HeartHandshake,
   HelpCircle,
   House,
-  KeyRound,
   MessageCircle,
   PanelRightOpen,
   Play,
@@ -59,7 +56,7 @@ import { appAssets, getJobVisual, getSceneImage, jobEidenWelcome } from './asset
 import { speakText } from './avatarSpeech';
 import { getJob, getSceneAacOptions, getSceneNarration, initialState, jobs, stages } from './data';
 import type { AacOption, ApiStudentSessionContext, AppState, ExplorationRecord, JobId, StudentSessionContext, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
-import type { TeacherClassSummary, TeacherLaunchCodeResult, TeacherRosterStudent, TeacherSession } from './adapters';
+import type { TeacherClassSummary, TeacherRosterStudent, TeacherSession } from './adapters';
 import { getCappedSceneTurnCount, getGuardedStudentSceneTurn, createGuardedSceneReply } from './guardedSceneTurns';
 import { LandingHero } from './LandingHero';
 import { DayExperience } from './StudentSceneTurnPanel';
@@ -107,16 +104,12 @@ type StudentLaunchPrefill = {
   studentCode: string;
 };
 
-type StudentLaunchStartOptions = {
-  historyMode?: 'push' | 'replace';
+type ClassEntrySession = {
+  classLabel: string;
+  students: TeacherRosterStudent[];
 };
 
 type TeacherDashboardPageId = 'records' | 'students';
-type ViteEnv = {
-  MODE?: string;
-  DEV?: boolean;
-};
-
 export const teacherDashboardNavigation: Array<{
   id: TeacherDashboardPageId;
   label: string;
@@ -125,10 +118,6 @@ export const teacherDashboardNavigation: Array<{
   { id: 'records', label: '학생 기록', Icon: ClipboardList },
   { id: 'students', label: '학생 관리', Icon: Users }
 ];
-
-function getViteEnv(): ViteEnv {
-  return (import.meta as ImportMeta & { env?: ViteEnv }).env ?? {};
-}
 
 function trimLaunchQueryValue(value: string | null) {
   return value?.trim().slice(0, 80) ?? '';
@@ -188,7 +177,7 @@ export function mergePersistedStateForInitialLoad(loaded: Partial<AppState> | nu
   return {
     ...initialState,
     ...(loaded ?? {}),
-    view: launchPrefill ? 'launch' : 'landing',
+    view: 'landing',
     selectedJobId: loaded?.selectedJobId ?? 'barista-aide',
     studentSession: undefined,
     teacherEvidenceTarget: undefined,
@@ -242,17 +231,6 @@ function avatarSpeechContext(state: AppState) {
   return {
     sessionId: state.teacherEvidenceTarget?.sessionId
   };
-}
-
-function isExplicitStudentDemoMode() {
-  const viteEnv = getViteEnv();
-  if (typeof window === 'undefined') return viteEnv.MODE === 'test';
-  const params = new URLSearchParams(window.location.search);
-  return viteEnv.MODE === 'test' || params.get('demo') === '1' || localStorage.getItem('kkumideun-demo-mode') === 'student';
-}
-
-function canUseLocalDemoFallback() {
-  return Boolean(getViteEnv().DEV) || isExplicitStudentDemoMode();
 }
 
 export function applyResolvedStudentContext(state: AppState, context: ApiStudentSessionContext): AppState {
@@ -466,12 +444,15 @@ function scrollToPageTop() {
 }
 
 export function App() {
-  const [studentLaunchPrefill] = useState<StudentLaunchPrefill | null>(() => getStudentLaunchPrefillFromLocation());
-  const [state, setState] = useState<AppState>(() => mergeLoadedState(studentLaunchPrefill));
+  const [state, setState] = useState<AppState>(() => mergeLoadedState(getStudentLaunchPrefillFromLocation()));
   const [summaryJobId, setSummaryJobId] = useState<JobId>(sourceAlignJobId);
   const [summarySceneId, setSummarySceneId] = useState<string>(getSourceAlignmentScene().id);
-  const [studentLaunchMessage, setStudentLaunchMessage] = useState<string | null>(null);
   const [studentSessionStarting, setStudentSessionStarting] = useState(false);
+  const [classEntrySession, setClassEntrySession] = useState<ClassEntrySession | null>(null);
+  const [classEntryModalOpen, setClassEntryModalOpen] = useState(false);
+  const [classEntryJobId, setClassEntryJobId] = useState<JobId | null>(null);
+  const [classEntryStudentId, setClassEntryStudentId] = useState<string | null>(null);
+  const [classEntryMessage, setClassEntryMessage] = useState<string | null>(null);
   const job = getJob(state.selectedJobId);
   const theme = getJobTheme(job.id);
   const currentScene = job.scenes.find((scene) => scene.id === state.selectedSceneId) ?? job.scenes[state.currentSceneIndex] ?? job.scenes[0];
@@ -549,14 +530,11 @@ export function App() {
     });
   }
 
-  function startDemoIntroForJob(jobId: JobId) {
+  function startIntroForJob(jobId: JobId) {
     const nextJob = getJob(jobId);
-    const demoSession: StudentSessionContext = {
-      mode: 'demo',
-      startedAt: new Date().toISOString()
-    };
 
-    setStudentLaunchMessage(null);
+    setClassEntryMessage(null);
+    setClassEntryJobId(null);
     writeHistoryView('intro', 'push');
     setState((current) => ({
       ...current,
@@ -570,38 +548,40 @@ export function App() {
       resting: false,
       replaying: false,
       view: 'intro',
-      studentSession: demoSession,
+      studentSession: undefined,
       teacherEvidenceTarget: undefined
     }));
     scrollToPageTop();
   }
 
-  async function resolveStudentAndEnterIntro(input: { classId: string; studentCode: string; launchCode: string }, options: StudentLaunchStartOptions = {}) {
-    const context = await resolveStudentLaunch(input);
-    setStudentLaunchMessage(null);
-    writeHistoryView('intro', options.historyMode ?? 'push');
-    setState((current) => applyResolvedStudentContext(current, context));
-    scrollToPageTop();
-  }
-
-  function startLocalDemoStudentFlow() {
-    const demoSession: StudentSessionContext = {
-      mode: 'demo',
-      startedAt: new Date().toISOString()
-    };
-    setStudentLaunchMessage(null);
-    writeHistoryView('intro', 'push');
+  function prepareClassEntrySession(session: ClassEntrySession) {
+    setClassEntrySession(session);
+    setClassEntryModalOpen(false);
+    setClassEntryJobId(null);
+    setClassEntryStudentId(null);
+    setClassEntryMessage(null);
+    writeHistoryView('landing', 'push');
     setState((current) => ({
       ...current,
-      view: 'intro',
-      studentSession: demoSession,
-      teacherEvidenceTarget: undefined
+      view: 'landing',
+      studentSession: undefined,
+      teacherEvidenceTarget: undefined,
+      visualSupportOpen: false,
+      resting: false,
+      replaying: false
     }));
     scrollToPageTop();
   }
 
   async function enterDayFromIntro() {
     if (!state.studentSession) {
+      if (classEntrySession?.students.length) {
+        setClassEntryJobId(state.selectedJobId);
+        setClassEntryMessage(null);
+        setClassEntryModalOpen(true);
+        return;
+      }
+
       const demoSession: StudentSessionContext = {
         mode: 'demo',
         startedAt: new Date().toISOString()
@@ -641,12 +621,54 @@ export function App() {
         resting: false,
         replaying: false
       }));
-      setStudentLaunchMessage(null);
+      scrollToPageTop();
+    } catch {
+      go('landing');
+    } finally {
+      setStudentSessionStarting(false);
+    }
+  }
+
+  async function startClassEntryStudentFlow(student: TeacherRosterStudent) {
+    if (!classEntrySession || classEntryStudentId) return;
+
+    const nextJobId = classEntryJobId ?? state.selectedJobId;
+    const nextJob = getJob(nextJobId);
+    setClassEntryStudentId(student.id);
+    setClassEntryMessage(null);
+    setStudentSessionStarting(true);
+    try {
+      const issuedCode = await generateStudentLaunchCode(student.id);
+      const context = await resolveStudentLaunch({
+        classId: student.classId,
+        studentCode: student.studentCode,
+        launchCode: issuedCode.launchCode
+      });
+      const sessionId = await createExplorationSession(context, nextJobId);
+      const startedContext: ApiStudentSessionContext = { ...context, sessionId };
+      writeHistoryView('day', 'push');
+      setState((current) => ({
+        ...applyResolvedStudentContext({
+          ...current,
+          selectedJobId: nextJobId,
+          selectedSceneId: nextJob.scenes[0].id,
+          currentSceneIndex: 0,
+          selectedAacOptionId: null,
+          coachReply: null,
+          sceneTurnCount: 0,
+          visualSupportOpen: false,
+          resting: false,
+          replaying: false
+        }, startedContext),
+        view: 'day'
+      }));
+      setClassEntryModalOpen(false);
+      setClassEntryMessage(null);
       scrollToPageTop();
     } catch (error) {
-      setStudentLaunchMessage(getStudentLaunchErrorMessage(error));
-      go('launch');
+      setClassEntryMessage(getStudentLaunchErrorMessage(error));
     } finally {
+      setClassEntryStudentId(null);
       setStudentSessionStarting(false);
     }
   }
@@ -797,20 +819,15 @@ export function App() {
         {state.view === 'landing' && (
           <LandingHero
             initialJobId={state.selectedJobId}
-            onStart={startDemoIntroForJob}
+            onStart={startIntroForJob}
             onTeacher={() => go('teacher')}
           />
         )}
         {state.view === 'launch' && (
           <StudentLaunchEntry
             job={job}
-            message={studentLaunchMessage}
-            allowDemoFallback={canUseLocalDemoFallback()}
-            prefill={studentLaunchPrefill}
             onBack={() => go('landing')}
             onTeacher={() => go('teacher')}
-            onResolve={resolveStudentAndEnterIntro}
-            onDemo={startLocalDemoStudentFlow}
           />
         )}
         {state.view === 'intro' && (
@@ -894,10 +911,23 @@ export function App() {
             drawerLog={drawerLog}
             onConfirm={confirmLog}
             onStudent={() => go('landing')}
-            onClassStudentLaunch={(input) => resolveStudentAndEnterIntro(input, { historyMode: 'replace' })}
+            onClassEntryReady={prepareClassEntrySession}
           />
         )}
       </div>
+
+      {classEntrySession && classEntryModalOpen && (
+        <ClassStudentEntryModal
+          classLabel={classEntrySession.classLabel}
+          students={classEntrySession.students}
+          startingStudentId={classEntryStudentId}
+          message={classEntryMessage}
+          onClose={() => {
+            if (!classEntryStudentId) setClassEntryModalOpen(false);
+          }}
+          onSelect={startClassEntryStudentFlow}
+        />
+      )}
 
       {state.visualSupportOpen && (
         <VisualSupportModal
@@ -994,122 +1024,15 @@ function StudentUtilityNav({
   );
 }
 
-type StudentLaunchInput = {
-  classId: string;
-  studentCode: string;
-  launchCode: string;
-};
-
 function StudentLaunchEntry({
   job,
-  message,
-  allowDemoFallback,
-  prefill,
   onBack,
-  onTeacher,
-  onResolve,
-  onDemo
+  onTeacher
 }: {
   job: ReturnType<typeof getJob>;
-  message: string | null;
-  allowDemoFallback: boolean;
-  prefill: StudentLaunchPrefill | null;
   onBack: () => void;
   onTeacher: () => void;
-  onResolve: (input: StudentLaunchInput) => Promise<void>;
-  onDemo: () => void;
 }) {
-  const [form, setForm] = useState<StudentLaunchInput>({
-    classId: prefill?.classId ?? '',
-    studentCode: prefill?.studentCode ?? '',
-    launchCode: ''
-  });
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(message);
-  const showDemoFallback = allowDemoFallback && status === 'error' && errorMessage?.includes('서버에 연결');
-  const hasPreparedStudent = Boolean(prefill);
-
-  useEffect(() => {
-    setErrorMessage(message);
-    if (message) setStatus('error');
-  }, [message]);
-
-  useEffect(() => {
-    if (!prefill) return;
-    setForm((current) => ({
-      ...current,
-      classId: prefill.classId,
-      studentCode: prefill.studentCode
-    }));
-  }, [prefill]);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setStatus('submitting');
-    setErrorMessage(null);
-    try {
-      await onResolve(form);
-    } catch (error) {
-      setStatus('error');
-      setErrorMessage(getStudentLaunchErrorMessage(error));
-    }
-  }
-
-  if (!hasPreparedStudent) {
-    return (
-      <main className="student-launch-screen" aria-labelledby="student-launch-title">
-        <section className="student-launch-copy">
-          <button className="summary-back-button" type="button" onClick={onBack} aria-label="처음 화면으로 돌아가기">
-            <ChevronLeft size={22} />
-          </button>
-          <span className="section-label">{job.title} 학생 입장</span>
-          <h2 id="student-launch-title">선생님이 학생 입장을 시작해요</h2>
-          <p>학생은 코드를 직접 입력하지 않고, 선생님이 연 클래스 화면에서 본인 이름을 선택합니다.</p>
-        </section>
-
-        <section className="student-launch-panel" aria-label="학생 입장 안내">
-          <div className="student-launch-secure">
-            <ShieldAlert size={26} />
-            <div>
-              <strong>클래스 입장 방식</strong>
-              <span>선생님이 학생 관리에서 학생을 미리 등록하고, 클래스 입장 시작을 누르면 이름 선택 화면이 열립니다.</span>
-            </div>
-          </div>
-
-          <div className="student-launch-teacher-steps" aria-label="입장 순서">
-            <div>
-              <strong>1</strong>
-              <span>교사가 학생 관리에서 반과 학생을 확인합니다.</span>
-            </div>
-            <div>
-              <strong>2</strong>
-              <span>교사가 클래스 입장 시작을 누릅니다.</span>
-            </div>
-            <div>
-              <strong>3</strong>
-              <span>학생은 모달에서 본인 이름만 선택합니다.</span>
-            </div>
-          </div>
-
-          <div className="student-launch-action-stack">
-            <button className="primary-cta" type="button" onClick={onTeacher}>
-              <Users size={20} />
-              교사 학생 관리로 가기
-            </button>
-            <button className="secondary-cta" type="button" onClick={onBack}>
-              처음 화면으로
-            </button>
-            {allowDemoFallback && (
-              <button className="student-launch-demo" type="button" onClick={onDemo}>
-                로컬 데모로 체험하기
-              </button>
-            )}
-          </div>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="student-launch-screen" aria-labelledby="student-launch-title">
       <section className="student-launch-copy">
@@ -1117,59 +1040,43 @@ function StudentLaunchEntry({
           <ChevronLeft size={22} />
         </button>
         <span className="section-label">{job.title} 학생 입장</span>
-        <h2 id="student-launch-title">입장 코드만 확인해요</h2>
-        <p>{job.title} 체험을 바로 시작할 수 있게 학생 정보가 준비되어 있습니다.</p>
+        <h2 id="student-launch-title">선생님이 학생 입장을 시작해요</h2>
+        <p>학생은 아이디나 코드를 입력하지 않고, 클래스 화면에서 본인 이름만 선택합니다.</p>
       </section>
 
-      <section className="student-launch-panel" aria-label="학생 입장 정보">
+      <section className="student-launch-panel" aria-label="학생 입장 안내">
         <div className="student-launch-secure">
           <ShieldAlert size={26} />
           <div>
-            <strong>안전한 학생 입장</strong>
-            <span>입장 코드는 한 번만 사용하고, 화면에는 학생 토큰을 보여주지 않습니다.</span>
+            <strong>클래스 이름 선택 방식</strong>
+            <span>선생님이 학생 관리에서 학생을 미리 등록하고, 클래스 입장 시작을 누르면 이름 선택 화면이 열립니다.</span>
           </div>
         </div>
 
-        <form className="student-launch-form" onSubmit={submit}>
-          <div className="student-launch-prepared" aria-label="준비된 학생 정보">
-            <div>
-              <span>반</span>
-              <strong>{form.classId}</strong>
-            </div>
-            <div>
-              <span>학생</span>
-              <strong>{form.studentCode}</strong>
-            </div>
+        <div className="student-launch-teacher-steps" aria-label="입장 순서">
+          <div>
+            <strong>1</strong>
+            <span>교사가 학생 관리에서 반과 학생을 확인합니다.</span>
           </div>
-          <label>
-            <span>입장 코드</span>
-            <input
-              value={form.launchCode}
-              onChange={(event) => setForm((current) => ({ ...current, launchCode: event.target.value }))}
-              placeholder="선생님 코드"
-              autoComplete="one-time-code"
-              autoCapitalize="characters"
-              required
-            />
-          </label>
-          <button className="primary-cta" type="submit" disabled={status === 'submitting'}>
-            <KeyRound size={20} />
-            {status === 'submitting' ? '확인 중' : '입장하기'}
-          </button>
-        </form>
-
-        {errorMessage && (
-          <div className="student-launch-alert" role="alert">
-            <AlertTriangle size={20} />
-            <span>{errorMessage}</span>
+          <div>
+            <strong>2</strong>
+            <span>교사가 클래스 입장 시작을 누릅니다.</span>
           </div>
-        )}
+          <div>
+            <strong>3</strong>
+            <span>학생은 하루 체험하기 후 본인 이름만 선택합니다.</span>
+          </div>
+        </div>
 
-        {showDemoFallback && (
-          <button className="student-launch-demo" type="button" onClick={onDemo}>
-            로컬 데모로 체험하기
+        <div className="student-launch-action-stack">
+          <button className="primary-cta" type="button" onClick={onTeacher}>
+            <Users size={20} />
+            교사 학생 관리로 가기
           </button>
-        )}
+          <button className="secondary-cta" type="button" onClick={onBack}>
+            처음 화면으로
+          </button>
+        </div>
       </section>
     </main>
   );
@@ -1603,7 +1510,7 @@ function TeacherDashboard({
   onClose,
   onConfirm,
   onStudent,
-  onClassStudentLaunch
+  onClassEntryReady
 }: {
   logs: TeacherLog[];
   records: ExplorationRecord[];
@@ -1612,7 +1519,7 @@ function TeacherDashboard({
   onClose: () => void;
   onConfirm: (id: string, decision: TeacherDecision, note?: string) => void;
   onStudent: () => void;
-  onClassStudentLaunch: (input: StudentLaunchInput) => Promise<void>;
+  onClassEntryReady: (session: ClassEntrySession) => void;
 }) {
   const pending = logs.filter((log) => log.status === '확인 대기');
   const completed = logs.filter((log) => log.status === '기록 완료');
@@ -1677,7 +1584,7 @@ function TeacherDashboard({
           </header>
 
           {activePage === 'students' ? (
-            <TeacherStudentManagement onClassStudentLaunch={onClassStudentLaunch} />
+            <TeacherStudentManagement onClassEntryReady={onClassEntryReady} />
           ) : (
             <>
               <section className="teacher-metric-row" aria-label="기록 상태 요약">
@@ -1795,13 +1702,6 @@ type RosterDraft = {
 type RosterNotice = {
   kind: 'success' | 'error';
   message: string;
-};
-
-type LaunchCodeNotice = TeacherLaunchCodeResult & {
-  studentLabel: string;
-  classId: string;
-  studentCode: string;
-  entryUrl: string;
 };
 
 const emptyRosterDraft: RosterDraft = {
@@ -1948,9 +1848,9 @@ function ClassStudentEntryModal({
 }
 
 function TeacherStudentManagement({
-  onClassStudentLaunch
+  onClassEntryReady
 }: {
-  onClassStudentLaunch: (input: StudentLaunchInput) => Promise<void>;
+  onClassEntryReady: (session: ClassEntrySession) => void;
 }) {
   const [teacher, setTeacher] = useState<TeacherSession | null>(null);
   const [classes, setClasses] = useState<TeacherClassSummary[]>([]);
@@ -1962,10 +1862,6 @@ function TeacherStudentManagement({
   const [notice, setNotice] = useState<RosterNotice | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [launchCode, setLaunchCode] = useState<LaunchCodeNotice | null>(null);
-  const [classEntryOpen, setClassEntryOpen] = useState(false);
-  const [classEntryStudentId, setClassEntryStudentId] = useState<string | null>(null);
-  const [classEntryMessage, setClassEntryMessage] = useState<string | null>(null);
 
   const selectedClass = classes.find((item) => item.id === selectedClassId);
   const rosterWritable = canManageRoster(teacher?.role);
@@ -1991,9 +1887,6 @@ function TeacherStudentManagement({
     setStatus('loading');
     setLoadError(null);
     setNotice(null);
-    setLaunchCode(null);
-    setClassEntryOpen(false);
-    setClassEntryMessage(null);
     try {
       const [nextTeacher, nextClasses] = await Promise.all([fetchTeacherMe(), fetchTeacherClasses()]);
       const activeClasses = nextClasses.filter((item) => item.active !== false);
@@ -2030,17 +1923,12 @@ function TeacherStudentManagement({
     void load();
     return () => {
       active = false;
-      setLaunchCode(null);
-      setClassEntryOpen(false);
     };
   }, []);
 
   async function handleClassChange(classId: string) {
     setSelectedClassId(classId);
     setNotice(null);
-    setLaunchCode(null);
-    setClassEntryOpen(false);
-    setClassEntryMessage(null);
     setStatus('loading');
     try {
       await refreshStudents(classId);
@@ -2048,26 +1936,6 @@ function TeacherStudentManagement({
     } catch (error) {
       setStatus('error');
       setLoadError(getRosterErrorMessage(error));
-    }
-  }
-
-  async function handleClassEntrySelect(student: TeacherRosterStudent) {
-    if (!rosterWritable || classEntryStudentId) return;
-
-    setClassEntryStudentId(student.id);
-    setClassEntryMessage(null);
-    try {
-      const result = await generateStudentLaunchCode(student.id);
-      await onClassStudentLaunch({
-        classId: student.classId,
-        studentCode: student.studentCode,
-        launchCode: result.launchCode
-      });
-      setClassEntryOpen(false);
-    } catch (error) {
-      setClassEntryMessage(getRosterErrorMessage(error));
-    } finally {
-      setClassEntryStudentId(null);
     }
   }
 
@@ -2124,63 +1992,22 @@ function TeacherStudentManagement({
     }
   }
 
-  async function handleLaunchCode(student: TeacherRosterStudent) {
-    if (!rosterWritable) return;
-
-    setSavingKey(`launch-${student.id}`);
-    setNotice(null);
-    setLaunchCode(null);
-    try {
-      const result = await generateStudentLaunchCode(student.id);
-      const entryUrl = typeof window === 'undefined'
-        ? ''
-        : buildStudentEntryUrl(window.location.origin, window.location.pathname, {
-            classId: student.classId,
-            studentCode: student.studentCode
-          });
-      setLaunchCode({
-        ...result,
-        studentLabel: studentLabel(student),
-        classId: student.classId,
-        studentCode: student.studentCode,
-        entryUrl
-      });
-      setNotice({ kind: 'success', message: '입장 코드를 새로 발급했습니다.' });
-    } catch (error) {
-      setNotice({ kind: 'error', message: getRosterErrorMessage(error) });
-    } finally {
-      setSavingKey(null);
-    }
-  }
-
-  async function handleCopyLaunchLink() {
-    if (!launchCode?.entryUrl) return;
-    if (typeof navigator === 'undefined' || !navigator.clipboard) {
-      setNotice({ kind: 'error', message: '이 브라우저에서는 자동 복사를 사용할 수 없습니다. 입력칸의 주소를 선택해 복사해 주세요.' });
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(launchCode.entryUrl);
-      setNotice({ kind: 'success', message: '학생 입장 링크를 복사했습니다.' });
-    } catch {
-      setNotice({ kind: 'error', message: '링크 복사에 실패했습니다. 입력칸의 주소를 선택해 복사해 주세요.' });
-    }
-  }
-
   return (
     <section className="teacher-student-management" aria-label="학생 관리">
       <header className="student-management-head">
         <div>
           <span>교사 roster</span>
-          <h3>담당 반 학생을 등록하고 입장 코드를 발급합니다</h3>
+          <h3>담당 반 학생을 등록하고 수업 입장을 준비합니다</h3>
         </div>
         <div className="student-management-head-actions">
           <button
             className="primary-cta compact"
             type="button"
             onClick={() => {
-              setClassEntryMessage(null);
-              setClassEntryOpen(true);
+              onClassEntryReady({
+                classLabel: selectedClass?.name ?? '선택한 반',
+                students: activeStudents
+              });
             }}
             disabled={!rosterWritable || status !== 'ready' || activeStudents.length === 0}
           >
@@ -2231,7 +2058,7 @@ function TeacherStudentManagement({
       {teacher && !rosterWritable && (
         <div className="student-management-alert is-readonly">
           <ShieldAlert size={20} />
-          <span>지원 인력은 담당 학생 정보를 볼 수만 있습니다. 등록, 수정, 입장 코드 발급은 담당 교사나 관리자에게 요청해 주세요.</span>
+          <span>지원 인력은 담당 학생 정보를 볼 수만 있습니다. 등록, 수정, 수업 입장 준비는 담당 교사나 관리자에게 요청해 주세요.</span>
         </div>
       )}
 
@@ -2240,57 +2067,6 @@ function TeacherStudentManagement({
           {notice.kind === 'error' ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
           <span>{notice.message}</span>
         </div>
-      )}
-
-      {classEntryOpen && (
-        <ClassStudentEntryModal
-          classLabel={selectedClass?.name ?? '선택한 반'}
-          students={activeStudents}
-          startingStudentId={classEntryStudentId}
-          message={classEntryMessage}
-          onClose={() => {
-            if (!classEntryStudentId) setClassEntryOpen(false);
-          }}
-          onSelect={handleClassEntrySelect}
-        />
-      )}
-
-      {launchCode && (
-        <section className="student-launch-code-panel" role="status" aria-live="polite">
-          <div className="student-launch-code-main">
-            <div>
-              <span>{launchCode.studentLabel} 입장 코드</span>
-              <strong>{launchCode.launchCode}</strong>
-              <small>{formatDateTime(launchCode.expiresAt)}까지 사용할 수 있습니다. 닫거나 다른 화면으로 이동하면 다시 표시하지 않습니다.</small>
-            </div>
-            <button type="button" onClick={() => setLaunchCode(null)} aria-label="입장 코드 닫기">
-              <X size={20} />
-            </button>
-          </div>
-          {launchCode.entryUrl && (
-            <div className="student-launch-link-tools">
-              <label>
-                <span>학생 입장 링크</span>
-                <input
-                  value={launchCode.entryUrl}
-                  readOnly
-                  onFocus={(event) => event.currentTarget.select()}
-                  aria-label={`${launchCode.studentLabel} 학생 입장 링크`}
-                />
-              </label>
-              <div>
-                <button type="button" onClick={handleCopyLaunchLink}>
-                  <Copy size={18} />
-                  링크 복사
-                </button>
-                <a href={launchCode.entryUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink size={18} />
-                  학생 화면 열기
-                </a>
-              </div>
-            </div>
-          )}
-        </section>
       )}
 
       {rosterWritable && (
@@ -2394,10 +2170,6 @@ function TeacherStudentManagement({
                     <button type="button" onClick={() => handleToggleActive(student)} disabled={saving}>
                       <Power size={18} />
                       {student.active ? '비활성화' : '다시 활성화'}
-                    </button>
-                    <button type="button" onClick={() => handleLaunchCode(student)} disabled={saving || !student.active}>
-                      <KeyRound size={18} />
-                      코드 생성
                     </button>
                   </>
                 ) : (

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, GraduationCap, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { appAssets, getJobVisual } from './assets';
 import { jobs } from './data';
@@ -288,7 +288,8 @@ export function LandingHero({ initialJobId = 'barista-aide', onStart, onTeacher 
             e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)';
           }}
         >
-          🎓 교사용으로 보기
+          <GraduationCap size={16} strokeWidth={2.4} aria-hidden="true" />
+          교사용으로 보기
         </button>
 
         {/* Carousel */}
