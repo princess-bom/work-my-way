@@ -10444,6 +10444,55 @@ h3 {
   font-weight: 840;
 }
 
+.student-launch-teacher-steps {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.student-launch-teacher-steps div {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(93, 72, 50, 0.14);
+  border-radius: 16px;
+  background: #fffdfa;
+}
+
+.student-launch-teacher-steps strong {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--accent-orange-soft);
+  color: #a34d00;
+  font-size: 18px;
+}
+
+.student-launch-teacher-steps span {
+  min-width: 0;
+  color: var(--text-strong);
+  font-weight: 780;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.student-launch-action-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.student-launch-action-stack .primary-cta,
+.student-launch-action-stack .secondary-cta,
+.student-launch-action-stack .student-launch-demo {
+  width: 100%;
+  min-height: 56px;
+}
+
 .student-management-head,
 .student-management-controls,
 .student-create-form,

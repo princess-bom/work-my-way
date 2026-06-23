@@ -549,6 +549,33 @@ export function App() {
     });
   }
 
+  function startDemoIntroForJob(jobId: JobId) {
+    const nextJob = getJob(jobId);
+    const demoSession: StudentSessionContext = {
+      mode: 'demo',
+      startedAt: new Date().toISOString()
+    };
+
+    setStudentLaunchMessage(null);
+    writeHistoryView('intro', 'push');
+    setState((current) => ({
+      ...current,
+      selectedJobId: jobId,
+      selectedSceneId: nextJob.scenes[0].id,
+      currentSceneIndex: 0,
+      selectedAacOptionId: null,
+      coachReply: null,
+      sceneTurnCount: 0,
+      visualSupportOpen: false,
+      resting: false,
+      replaying: false,
+      view: 'intro',
+      studentSession: demoSession,
+      teacherEvidenceTarget: undefined
+    }));
+    scrollToPageTop();
+  }
+
   async function resolveStudentAndEnterIntro(input: { classId: string; studentCode: string; launchCode: string }, options: StudentLaunchStartOptions = {}) {
     const context = await resolveStudentLaunch(input);
     setStudentLaunchMessage(null);
@@ -575,8 +602,21 @@ export function App() {
 
   async function enterDayFromIntro() {
     if (!state.studentSession) {
-      setStudentLaunchMessage('학생 입장 확인이 필요합니다. 선생님에게 받은 입장 코드를 입력해 주세요.');
-      go('launch');
+      const demoSession: StudentSessionContext = {
+        mode: 'demo',
+        startedAt: new Date().toISOString()
+      };
+      writeHistoryView('day', 'push');
+      setState((current) => ({
+        ...current,
+        view: 'day',
+        studentSession: demoSession,
+        teacherEvidenceTarget: undefined,
+        visualSupportOpen: false,
+        resting: false,
+        replaying: false
+      }));
+      scrollToPageTop();
       return;
     }
 
@@ -757,10 +797,7 @@ export function App() {
         {state.view === 'landing' && (
           <LandingHero
             initialJobId={state.selectedJobId}
-            onStart={(jobId) => {
-              chooseJob(jobId);
-              go('launch');
-            }}
+            onStart={startDemoIntroForJob}
             onTeacher={() => go('teacher')}
           />
         )}
@@ -771,6 +808,7 @@ export function App() {
             allowDemoFallback={canUseLocalDemoFallback()}
             prefill={studentLaunchPrefill}
             onBack={() => go('landing')}
+            onTeacher={() => go('teacher')}
             onResolve={resolveStudentAndEnterIntro}
             onDemo={startLocalDemoStudentFlow}
           />
@@ -855,7 +893,7 @@ export function App() {
             onClose={() => update({ teacherDrawerLogId: null })}
             drawerLog={drawerLog}
             onConfirm={confirmLog}
-            onStudent={() => go('launch')}
+            onStudent={() => go('landing')}
             onClassStudentLaunch={(input) => resolveStudentAndEnterIntro(input, { historyMode: 'replace' })}
           />
         )}
@@ -968,6 +1006,7 @@ function StudentLaunchEntry({
   allowDemoFallback,
   prefill,
   onBack,
+  onTeacher,
   onResolve,
   onDemo
 }: {
@@ -976,6 +1015,7 @@ function StudentLaunchEntry({
   allowDemoFallback: boolean;
   prefill: StudentLaunchPrefill | null;
   onBack: () => void;
+  onTeacher: () => void;
   onResolve: (input: StudentLaunchInput) => Promise<void>;
   onDemo: () => void;
 }) {
@@ -1015,6 +1055,61 @@ function StudentLaunchEntry({
     }
   }
 
+  if (!hasPreparedStudent) {
+    return (
+      <main className="student-launch-screen" aria-labelledby="student-launch-title">
+        <section className="student-launch-copy">
+          <button className="summary-back-button" type="button" onClick={onBack} aria-label="처음 화면으로 돌아가기">
+            <ChevronLeft size={22} />
+          </button>
+          <span className="section-label">{job.title} 학생 입장</span>
+          <h2 id="student-launch-title">선생님이 학생 입장을 시작해요</h2>
+          <p>학생은 코드를 직접 입력하지 않고, 선생님이 연 클래스 화면에서 본인 이름을 선택합니다.</p>
+        </section>
+
+        <section className="student-launch-panel" aria-label="학생 입장 안내">
+          <div className="student-launch-secure">
+            <ShieldAlert size={26} />
+            <div>
+              <strong>클래스 입장 방식</strong>
+              <span>선생님이 학생 관리에서 학생을 미리 등록하고, 클래스 입장 시작을 누르면 이름 선택 화면이 열립니다.</span>
+            </div>
+          </div>
+
+          <div className="student-launch-teacher-steps" aria-label="입장 순서">
+            <div>
+              <strong>1</strong>
+              <span>교사가 학생 관리에서 반과 학생을 확인합니다.</span>
+            </div>
+            <div>
+              <strong>2</strong>
+              <span>교사가 클래스 입장 시작을 누릅니다.</span>
+            </div>
+            <div>
+              <strong>3</strong>
+              <span>학생은 모달에서 본인 이름만 선택합니다.</span>
+            </div>
+          </div>
+
+          <div className="student-launch-action-stack">
+            <button className="primary-cta" type="button" onClick={onTeacher}>
+              <Users size={20} />
+              교사 학생 관리로 가기
+            </button>
+            <button className="secondary-cta" type="button" onClick={onBack}>
+              처음 화면으로
+            </button>
+            {allowDemoFallback && (
+              <button className="student-launch-demo" type="button" onClick={onDemo}>
+                로컬 데모로 체험하기
+              </button>
+            )}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="student-launch-screen" aria-labelledby="student-launch-title">
       <section className="student-launch-copy">
@@ -1022,8 +1117,8 @@ function StudentLaunchEntry({
           <ChevronLeft size={22} />
         </button>
         <span className="section-label">{job.title} 학생 입장</span>
-        <h2 id="student-launch-title">{hasPreparedStudent ? '입장 코드만 확인해요' : '선생님이 준 입장 코드로 시작해요'}</h2>
-        <p>{hasPreparedStudent ? `${job.title} 체험을 바로 시작할 수 있게 학생 정보가 준비되어 있습니다.` : `반, 학생 코드, 입장 코드를 확인한 뒤 ${job.title} 체험을 시작합니다.`}</p>
+        <h2 id="student-launch-title">입장 코드만 확인해요</h2>
+        <p>{job.title} 체험을 바로 시작할 수 있게 학생 정보가 준비되어 있습니다.</p>
       </section>
 
       <section className="student-launch-panel" aria-label="학생 입장 정보">
@@ -1036,41 +1131,16 @@ function StudentLaunchEntry({
         </div>
 
         <form className="student-launch-form" onSubmit={submit}>
-          {hasPreparedStudent ? (
-            <div className="student-launch-prepared" aria-label="준비된 학생 정보">
-              <div>
-                <span>반</span>
-                <strong>{form.classId}</strong>
-              </div>
-              <div>
-                <span>학생</span>
-                <strong>{form.studentCode}</strong>
-              </div>
+          <div className="student-launch-prepared" aria-label="준비된 학생 정보">
+            <div>
+              <span>반</span>
+              <strong>{form.classId}</strong>
             </div>
-          ) : (
-            <>
-              <label>
-                <span>반 ID</span>
-                <input
-                  value={form.classId}
-                  onChange={(event) => setForm((current) => ({ ...current, classId: event.target.value }))}
-                  placeholder="예: class-1"
-                  autoComplete="off"
-                  required
-                />
-              </label>
-              <label>
-                <span>학생 코드</span>
-                <input
-                  value={form.studentCode}
-                  onChange={(event) => setForm((current) => ({ ...current, studentCode: event.target.value }))}
-                  placeholder="예: S001"
-                  autoComplete="off"
-                  required
-                />
-              </label>
-            </>
-          )}
+            <div>
+              <span>학생</span>
+              <strong>{form.studentCode}</strong>
+            </div>
+          </div>
           <label>
             <span>입장 코드</span>
             <input
