@@ -39,6 +39,7 @@ import {
   createExplorationSessionResponse,
   createRecord,
   createRosterStudent,
+  createTeacherClass,
   fetchClassStudents,
   fetchClassEntrySession,
   fetchTeacherClasses,
@@ -58,8 +59,20 @@ import {
 import { appAssets, getJobVisual, getSceneImage, jobEidenWelcome } from './assets';
 import { speakText } from './avatarSpeech';
 import { getJob, getSceneAacOptions, getSceneNarration, initialState, jobs, stages } from './data';
-import type { AacOption, ApiStudentSessionContext, AppState, ExplorationRecord, JobId, SupportActionId, TeacherDecision, TeacherLog, ViewId } from './domain';
-import type { ClassEntryStudent, TeacherClassSummary, TeacherRosterStudent, TeacherSession } from './adapters';
+import type {
+  AacOption,
+  ApiStudentSessionContext,
+  AppState,
+  ExplorationRecord,
+  JobId,
+  LocalClassEntrySession,
+  LocalRosterSnapshot,
+  SupportActionId,
+  TeacherDecision,
+  TeacherLog,
+  ViewId
+} from './domain';
+import type { ClassEntryStudent, TeacherClassSummary, TeacherRosterStudent, TeacherRosterStudentInput, TeacherSession } from './adapters';
 import { getCappedSceneTurnCount, getGuardedStudentSceneTurn, createGuardedSceneReply } from './guardedSceneTurns';
 import { LandingHero } from './LandingHero';
 import { DayExperience } from './StudentSceneTurnPanel';
@@ -111,7 +124,113 @@ type ClassEntrySession = {
   entryToken?: string;
   classLabel: string;
   students: ClassEntryStudent[];
+  local?: boolean;
 };
+
+const localRosterStorageKey = 'kkumideun-findjob-frontend-local-roster-v1';
+
+function toLocalClassEntrySession(session: ClassEntrySession): LocalClassEntrySession | undefined {
+  if (!session.local || !session.students.length) return undefined;
+  return {
+    classLabel: session.classLabel,
+    local: true,
+    students: session.students.map((student) => ({
+      id: student.id,
+      classId: student.classId,
+      studentCode: student.studentCode,
+      displayName: student.displayName,
+      classNumber: student.classNumber ?? null
+    }))
+  };
+}
+
+function isPersistedLocalClassEntryStudent(value: unknown): value is LocalClassEntrySession['students'][number] {
+  if (!value || typeof value !== 'object') return false;
+  const student = value as Partial<LocalClassEntrySession['students'][number]>;
+  return typeof student.id === 'string' &&
+    typeof student.classId === 'string' &&
+    typeof student.displayName === 'string' &&
+    (student.studentCode === undefined || typeof student.studentCode === 'string') &&
+    (student.classNumber === undefined || student.classNumber === null || typeof student.classNumber === 'string');
+}
+
+export function getPersistedLocalClassEntrySession(loaded: Partial<AppState> | null): ClassEntrySession | null {
+  const session = loaded?.localClassEntrySession;
+  if (!session || session.local !== true || typeof session.classLabel !== 'string' || !Array.isArray(session.students)) {
+    return null;
+  }
+
+  const students = session.students.filter(isPersistedLocalClassEntryStudent);
+  if (!students.length) return null;
+
+  return {
+    classLabel: session.classLabel.trim() || '학생 이름 선택',
+    students,
+    local: true
+  };
+}
+
+function isLocalRosterClass(value: unknown): value is LocalRosterSnapshot['classes'][number] {
+  if (!value || typeof value !== 'object') return false;
+  const classSummary = value as Partial<LocalRosterSnapshot['classes'][number]>;
+  return typeof classSummary.id === 'string' &&
+    typeof classSummary.name === 'string' &&
+    (classSummary.gradeLabel === undefined || classSummary.gradeLabel === null || typeof classSummary.gradeLabel === 'string') &&
+    (classSummary.schoolYear === undefined || classSummary.schoolYear === null || typeof classSummary.schoolYear === 'number') &&
+    (classSummary.active === undefined || typeof classSummary.active === 'boolean');
+}
+
+export function getClassEntrySessionFromLocalRosterSnapshot(snapshot: unknown): ClassEntrySession | null {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const value = snapshot as Partial<LocalRosterSnapshot>;
+  if (!Array.isArray(value.classes) || !value.studentsByClassId || typeof value.studentsByClassId !== 'object') {
+    return null;
+  }
+
+  const classes = value.classes.filter(isLocalRosterClass).filter((item) => item.active !== false);
+  const selectedClass =
+    classes.find((item) => item.id === value.selectedClassId) ??
+    classes.find((item) => (value.studentsByClassId?.[item.id] ?? []).some(isPersistedLocalClassEntryStudent)) ??
+    classes[0];
+  if (!selectedClass) return null;
+
+  const students = (value.studentsByClassId[selectedClass.id] ?? []).filter(isPersistedLocalClassEntryStudent);
+  if (!students.length) return null;
+
+  return {
+    classLabel: selectedClass.name || '학생 이름 선택',
+    students,
+    local: true
+  };
+}
+
+export function getPersistedClassEntrySession(
+  loaded: Partial<AppState> | null,
+  localRosterSnapshot: unknown = null
+): ClassEntrySession | null {
+  return getPersistedLocalClassEntrySession(loaded) ??
+    getClassEntrySessionFromLocalRosterSnapshot(localRosterSnapshot);
+}
+
+function readLocalRosterSnapshot(): LocalRosterSnapshot | null {
+  if (typeof localStorage === 'undefined') return null;
+  const raw = localStorage.getItem(localRosterStorageKey);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const session = getClassEntrySessionFromLocalRosterSnapshot(parsed);
+    if (!session) return null;
+    return parsed as LocalRosterSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalRosterSnapshot(snapshot: LocalRosterSnapshot) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(localRosterStorageKey, JSON.stringify(snapshot));
+}
 
 type TeacherDashboardPageId = 'records' | 'students';
 export const teacherDashboardNavigation: Array<{
@@ -204,7 +323,12 @@ function writeHistoryView(view: ViewId, mode: 'push' | 'replace') {
   window.history.pushState(historyState, '', window.location.href);
 }
 
-export function mergePersistedStateForInitialLoad(loaded: Partial<AppState> | null, launchPrefill: StudentLaunchPrefill | null = null): AppState {
+export function mergePersistedStateForInitialLoad(
+  loaded: Partial<AppState> | null,
+  launchPrefill: StudentLaunchPrefill | null = null,
+  localRosterSnapshot: unknown = null
+): AppState {
+  const localClassEntrySession = getPersistedClassEntrySession(loaded, localRosterSnapshot) ?? undefined;
   return {
     ...initialState,
     ...(loaded ?? {}),
@@ -215,13 +339,14 @@ export function mergePersistedStateForInitialLoad(loaded: Partial<AppState> | nu
     visualSupportOpen: false,
     resting: false,
     replaying: false,
-    teacherLogs: loaded?.teacherLogs?.length ? loaded.teacherLogs : initialState.teacherLogs,
-    records: sortRecordsByLatest(loaded?.records ?? [])
+    localClassEntrySession: localClassEntrySession ? toLocalClassEntrySession(localClassEntrySession) : undefined,
+    teacherLogs: filterTeacherDashboardLogs(loaded?.teacherLogs),
+    records: filterTeacherDashboardRecords(loaded?.records)
   };
 }
 
 function mergeLoadedState(launchPrefill: StudentLaunchPrefill | null): AppState {
-  return mergePersistedStateForInitialLoad(localSessionRepository.load(), launchPrefill);
+  return mergePersistedStateForInitialLoad(localSessionRepository.load(), launchPrefill, readLocalRosterSnapshot());
 }
 
 function formatTime(value: string) {
@@ -251,16 +376,178 @@ function sortRecordsByLatest(records: ExplorationRecord[]) {
   return [...records].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
+function sortLogsByLatest(logs: TeacherLog[]) {
+  return [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+function getTimestamp(value: string) {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function getLogJobId(log: TeacherLog): JobId {
+  if (log.jobId) return log.jobId;
+  return jobs.find((job) => job.title === log.jobTitle)?.id ?? sourceAlignJobId;
+}
+
+function getTeacherLogSceneName(log: TeacherLog) {
+  return log.stageLabel.replace(/^\d+\s*/, '').trim() || log.stageLabel;
+}
+
+function getTeacherLogExpressionLabel(log: TeacherLog) {
+  if (log.studentExpression?.trim()) return log.studentExpression.trim();
+  const quotedExpression = log.summary.match(/"([^"]+)"/)?.[1]?.trim();
+  return quotedExpression || log.signal;
+}
+
+function getTeacherLearningStatus(logs: TeacherLog[], fallback: TeacherLog['status'] = '참고 기록'): TeacherLog['status'] {
+  if (logs.some((log) => log.status === '저장 오류')) return '저장 오류';
+  if (logs.some((log) => log.status === '확인 대기')) return '확인 대기';
+  if (logs.length && logs.every((log) => log.status === '기록 완료')) return '기록 완료';
+  return fallback;
+}
+
+function getTeacherLearningStatusLabel(status: TeacherLog['status']) {
+  if (status === '기록 완료') return '확인 완료';
+  if (status === '저장 오류') return '저장 확인';
+  if (status === '확인 대기') return '확인 필요';
+  return '참고 기록';
+}
+
+function getTeacherLearningStatusClass(status: TeacherLog['status']) {
+  if (status === '기록 완료') return 'is-complete';
+  if (status === '저장 오류') return 'is-error';
+  if (status === '확인 대기') return 'is-pending';
+  return 'is-reference';
+}
+
+type TeacherLearningCard = {
+  id: string;
+  source: 'record' | 'session';
+  studentName: string;
+  jobId: JobId;
+  jobTitle: string;
+  createdAt: string;
+  updatedAt: string;
+  memorableScene: string;
+  studentThought: string;
+  edenNote: string;
+  logs: TeacherLog[];
+  status: TeacherLog['status'];
+  primaryLog: TeacherLog | null;
+};
+
+function getTeacherLogGroupKey(log: TeacherLog) {
+  return [
+    log.sessionId ?? log.studentId ?? log.studentName,
+    log.jobId ?? log.jobTitle
+  ].join('::');
+}
+
+export function buildTeacherLearningCards(records: ExplorationRecord[], logs: TeacherLog[]): TeacherLearningCard[] {
+  const consumedLogIds = new Set<string>();
+  const recordCards = sortRecordsByLatest(records).map((record) => {
+    const recordLogs = sortLogsByLatest(record.logs.length
+      ? record.logs
+      : logs.filter((log) => log.studentName === record.studentName && log.jobTitle === record.jobTitle));
+    recordLogs.forEach((log) => consumedLogIds.add(log.id));
+    const primaryLog = recordLogs[0] ?? null;
+    return {
+      id: `record-${record.id}`,
+      source: 'record' as const,
+      studentName: record.studentName,
+      jobId: record.jobId,
+      jobTitle: record.jobTitle,
+      createdAt: record.createdAt,
+      updatedAt: primaryLog?.createdAt ?? record.createdAt,
+      memorableScene: record.memorableScene,
+      studentThought: record.studentThought,
+      edenNote: record.edenNote,
+      logs: recordLogs,
+      status: getTeacherLearningStatus(recordLogs, '기록 완료'),
+      primaryLog
+    };
+  });
+
+  const groupedLogs = new Map<string, TeacherLog[]>();
+  logs.forEach((log) => {
+    if (consumedLogIds.has(log.id)) return;
+    const groupKey = getTeacherLogGroupKey(log);
+    groupedLogs.set(groupKey, [...(groupedLogs.get(groupKey) ?? []), log]);
+  });
+
+  const sessionCards = Array.from(groupedLogs.values()).map((group) => {
+    const orderedGroup = sortLogsByLatest(group);
+    const primaryLog = orderedGroup[0] ?? null;
+    const fallbackLog = primaryLog ?? orderedGroup[0];
+    const firstLog = orderedGroup[orderedGroup.length - 1] ?? fallbackLog;
+    const expressions = orderedGroup.map(getTeacherLogExpressionLabel);
+    return {
+      id: `session-${fallbackLog ? getTeacherLogGroupKey(fallbackLog) : 'empty'}`,
+      source: 'session' as const,
+      studentName: primaryLog?.studentName ?? '학생',
+      jobId: primaryLog ? getLogJobId(primaryLog) : sourceAlignJobId,
+      jobTitle: primaryLog?.jobTitle ?? '탐색',
+      createdAt: firstLog?.createdAt ?? new Date().toISOString(),
+      updatedAt: primaryLog?.createdAt ?? new Date().toISOString(),
+      memorableScene: primaryLog ? getTeacherLogSceneName(primaryLog) : '오늘의 장면',
+      studentThought: expressions[0] ?? '학생 선택을 확인해 주세요',
+      edenNote: `${orderedGroup.length}개의 선택 근거가 이 학습 카드에 모였습니다.`,
+      logs: orderedGroup,
+      status: getTeacherLearningStatus(orderedGroup),
+      primaryLog
+    };
+  });
+
+  return [...recordCards, ...sessionCards].sort((a, b) => getTimestamp(b.updatedAt) - getTimestamp(a.updatedAt));
+}
+
+function isLegacySeededTeacherLog(log: TeacherLog) {
+  const studentId = log.studentId ?? '';
+  const sessionId = log.sessionId ?? '';
+  return (
+    log.id.startsWith('log-demo-') ||
+    sessionId.startsWith('demo-session-') ||
+    studentId === 'demo-student-hong'
+  );
+}
+
+function filterTeacherDashboardLogs(logs: TeacherLog[] | undefined) {
+  return (logs ?? []).filter((log) => !isLegacySeededTeacherLog(log));
+}
+
+function isLegacySeededExplorationRecord(record: ExplorationRecord) {
+  return record.id.startsWith('record-demo-') || record.logs.some(isLegacySeededTeacherLog);
+}
+
+function filterTeacherDashboardRecords(records: ExplorationRecord[] | undefined) {
+  return sortRecordsByLatest((records ?? []).filter((record) => !isLegacySeededExplorationRecord(record)));
+}
+
+function cleanPersistedTeacherState(state: AppState): AppState {
+  const teacherLogs = filterTeacherDashboardLogs(state.teacherLogs);
+  return {
+    ...state,
+    teacherLogs,
+    records: filterTeacherDashboardRecords(state.records),
+    teacherDrawerLogId: state.teacherDrawerLogId && teacherLogs.some((log) => log.id === state.teacherDrawerLogId)
+      ? state.teacherDrawerLogId
+      : null
+  };
+}
+
 function avatarSpeechContext(state: AppState) {
   if (isApiStudentSession(state.studentSession)) {
     return {
       sessionId: state.studentSession.sessionId,
-      studentToken: state.studentSession.studentToken
+      studentToken: state.studentSession.studentToken,
+      allowBrowserFallback: false
     };
   }
 
   return {
-    sessionId: state.teacherEvidenceTarget?.sessionId
+    sessionId: state.teacherEvidenceTarget?.sessionId,
+    allowBrowserFallback: true
   };
 }
 
@@ -417,7 +704,7 @@ export function buildTeacherSessionSummary(log: TeacherLog) {
   const nextInstructionGuide = log.nextInstructionGuide?.length ? log.nextInstructionGuide : getFallbackNextInstruction(log);
 
   return {
-    summaryForTeacher: `${log.studentName}은 ${log.jobTitle} ${log.stageLabel}에서 ${expression}을 기록했습니다. 이 내용은 교사가 확인해야 하는 수업 후보 근거입니다.`,
+    summaryForTeacher: `${log.studentName}은 ${log.jobTitle} ${log.stageLabel}에서 "${expression}" 표현을 기록했습니다. 이 내용은 교사가 확인해야 하는 수업 후보 근거입니다.`,
     sceneEvidence: candidates.map((candidate) => ({
       ...candidate,
       candidateLevelLabel: candidateLevelLabels[candidate.candidateLevel],
@@ -479,7 +766,9 @@ export function App() {
   const [summaryJobId, setSummaryJobId] = useState<JobId>(sourceAlignJobId);
   const [summarySceneId, setSummarySceneId] = useState<string>(getSourceAlignmentScene().id);
   const [studentSessionStarting, setStudentSessionStarting] = useState(false);
-  const [classEntrySession, setClassEntrySession] = useState<ClassEntrySession | null>(null);
+  const [classEntrySession, setClassEntrySession] = useState<ClassEntrySession | null>(() =>
+    getPersistedClassEntrySession(localSessionRepository.load(), readLocalRosterSnapshot())
+  );
   const [classEntryToken, setClassEntryToken] = useState<string | null>(() => getClassEntryTokenFromLocation());
   const [classEntryLoading, setClassEntryLoading] = useState(false);
   const [classEntryModalOpen, setClassEntryModalOpen] = useState(false);
@@ -489,11 +778,13 @@ export function App() {
   const job = getJob(state.selectedJobId);
   const theme = getJobTheme(job.id);
   const currentScene = job.scenes.find((scene) => scene.id === state.selectedSceneId) ?? job.scenes[state.currentSceneIndex] ?? job.scenes[0];
-  const pendingLogs = state.teacherLogs.filter((log) => log.status === '확인 대기');
-  const drawerLog = state.teacherLogs.find((log) => log.id === state.teacherDrawerLogId) ?? null;
+  const teacherDashboardLogs = filterTeacherDashboardLogs(state.teacherLogs);
+  const teacherDashboardRecords = filterTeacherDashboardRecords(state.records);
+  const pendingLogs = teacherDashboardLogs.filter((log) => log.status === '확인 대기');
+  const drawerLog = teacherDashboardLogs.find((log) => log.id === state.teacherDrawerLogId) ?? null;
 
   useEffect(() => {
-    localSessionRepository.save(state);
+    localSessionRepository.save(cleanPersistedTeacherState(state));
   }, [state]);
 
   useEffect(() => {
@@ -592,13 +883,9 @@ export function App() {
   }
 
   function prepareClassEntrySession(session: ClassEntrySession) {
-    setClassEntrySession(session);
-    setClassEntryToken(session.entryToken ?? null);
-    setClassEntryLoading(false);
+    prepareClassEntryRoster(session);
     setClassEntryModalOpen(false);
     setClassEntryJobId(null);
-    setClassEntryStudentId(null);
-    setClassEntryMessage(null);
     writeHistoryView('landing', 'push');
     if (session.entryToken) replaceClassEntryTokenInLocation(session.entryToken);
     setState((current) => ({
@@ -613,8 +900,29 @@ export function App() {
     scrollToPageTop();
   }
 
-  async function openClassEntryNamePicker() {
-    setClassEntryJobId(state.selectedJobId);
+  function prepareClassEntryRoster(session: ClassEntrySession) {
+    const localClassEntrySession = toLocalClassEntrySession(session);
+    setClassEntrySession(session);
+    setClassEntryToken(session.entryToken ?? null);
+    setClassEntryLoading(false);
+    setClassEntryStudentId(null);
+    setClassEntryMessage(null);
+    setState((current) => ({
+      ...current,
+      localClassEntrySession
+    }));
+  }
+
+  function usePersistedLocalClassEntryFallback() {
+    const localSession = getPersistedClassEntrySession(localSessionRepository.load(), readLocalRosterSnapshot());
+    if (!localSession) return false;
+    prepareClassEntryRoster(localSession);
+    setClassEntryModalOpen(true);
+    return true;
+  }
+
+  async function openClassEntryNamePicker(jobId = state.selectedJobId) {
+    setClassEntryJobId(jobId);
     setClassEntryMessage(null);
 
     if (classEntrySession?.students.length) {
@@ -646,6 +954,7 @@ export function App() {
       const nextClass = nextClasses.find((item) => item.active) ?? nextClasses[0];
 
       if (!nextClass) {
+        if (usePersistedLocalClassEntryFallback()) return;
         setClassEntrySession({ classLabel: '학생 이름 선택', students: [] });
         setClassEntryMessage('아직 등록된 반이 없습니다. 선생님이 학생 관리에서 반과 학생을 먼저 등록해야 합니다.');
         return;
@@ -654,9 +963,11 @@ export function App() {
       const nextStudents = (await fetchClassStudents(nextClass.id)).filter((student) => student.active);
       setClassEntrySession({ classLabel: nextClass.name, students: nextStudents });
       if (!nextStudents.length) {
+        if (usePersistedLocalClassEntryFallback()) return;
         setClassEntryMessage('등록된 학생이 없습니다. 선생님이 학생 관리에서 학생을 먼저 등록해야 합니다.');
       }
     } catch {
+      if (usePersistedLocalClassEntryFallback()) return;
       setClassEntrySession({ classLabel: '학생 이름 선택', students: [] });
       setClassEntryMessage('학생 이름 목록을 불러오지 못했습니다. 선생님 화면에서 학생 관리를 먼저 열어 주세요.');
     } finally {
@@ -708,6 +1019,39 @@ export function App() {
     setClassEntryMessage(null);
     setStudentSessionStarting(true);
     try {
+      if (classEntrySession.local) {
+        writeHistoryView('day', 'push');
+        setState((current) => ({
+          ...current,
+          selectedJobId: nextJobId,
+          selectedSceneId: nextJob.scenes[0].id,
+          currentSceneIndex: 0,
+          selectedAacOptionId: null,
+          coachReply: null,
+          sceneTurnCount: 0,
+          visualSupportOpen: false,
+          resting: false,
+          replaying: false,
+          studentSession: {
+            mode: 'demo',
+            startedAt: new Date().toISOString(),
+            classId: student.classId,
+            studentId: student.id,
+            displayName: student.displayName,
+            classNumber: student.classNumber ?? null
+          },
+          teacherEvidenceTarget: {
+            studentId: student.id,
+            sessionId: `local-session-${student.id}`
+          },
+          view: 'day'
+        }));
+        setClassEntryModalOpen(false);
+        setClassEntryMessage(null);
+        scrollToPageTop();
+        return;
+      }
+
       const context = classEntrySession.entryToken
         ? await startClassEntryStudent(classEntrySession.entryToken, student.id)
         : await startClassEntryStudentWithTeacherSession(student);
@@ -899,7 +1243,14 @@ export function App() {
         {state.view === 'landing' && (
           <LandingHero
             initialJobId={state.selectedJobId}
-            onStart={startIntroForJob}
+            onStart={(jobId) => {
+              const hasPreparedClassEntry = Boolean(classEntrySession?.students.length || classEntryToken || getClassEntryTokenFromLocation());
+              if (hasPreparedClassEntry) {
+                void openClassEntryNamePicker(jobId);
+                return;
+              }
+              startIntroForJob(jobId);
+            }}
             onTeacher={() => go('teacher')}
           />
         )}
@@ -986,14 +1337,15 @@ export function App() {
         )}
         {state.view === 'teacher' && (
           <TeacherDashboard
-            logs={state.teacherLogs}
-            records={state.records}
+            logs={teacherDashboardLogs}
+            records={teacherDashboardRecords}
             onOpen={(id) => update({ teacherDrawerLogId: id })}
             onClose={() => update({ teacherDrawerLogId: null })}
             drawerLog={drawerLog}
             onConfirm={confirmLog}
             onStudent={() => go('landing')}
             onClassEntryReady={prepareClassEntrySession}
+            onClassEntryRosterPrepared={prepareClassEntryRoster}
           />
         )}
       </div>
@@ -1535,7 +1887,8 @@ function TeacherDashboard({
   onClose,
   onConfirm,
   onStudent,
-  onClassEntryReady
+  onClassEntryReady,
+  onClassEntryRosterPrepared
 }: {
   logs: TeacherLog[];
   records: ExplorationRecord[];
@@ -1545,13 +1898,17 @@ function TeacherDashboard({
   onConfirm: (id: string, decision: TeacherDecision, note?: string) => void;
   onStudent: () => void;
   onClassEntryReady: (session: ClassEntrySession) => void;
+  onClassEntryRosterPrepared: (session: ClassEntrySession) => void;
 }) {
-  const pending = logs.filter((log) => log.status === '확인 대기');
-  const completed = logs.filter((log) => log.status === '기록 완료');
-  const supportRequests = logs.filter((log) => log.signal === '도움 필요' || log.signal === '쉬기/전환' || log.signal === '모름/불확실');
-  const studentCount = new Set(logs.map((log) => log.studentName)).size;
-  const orderedLogs = logs.slice().sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
-  const highlightedLog = drawerLog ?? pending[0] ?? orderedLogs[0];
+  const learningCards = buildTeacherLearningCards(records, logs);
+  const pendingCards = learningCards.filter((card) => card.status === '확인 대기' || card.status === '저장 오류');
+  const completedCards = learningCards.filter((card) => card.status === '기록 완료');
+  const supportRequestCards = learningCards.filter((card) =>
+    card.logs.some((log) => log.signal === '도움 필요' || log.signal === '쉬기/전환' || log.signal === '모름/불확실')
+  );
+  const studentCount = new Set(learningCards.map((card) => card.studentName)).size;
+  const hasLearningCards = learningCards.length > 0;
+  const displayDate = learningCards[0]?.updatedAt ?? records[0]?.createdAt ?? logs[0]?.createdAt ?? new Date().toISOString();
   const [activePage, setActivePage] = useState<TeacherDashboardPageId>('records');
   return (
     <main className="teacher-screen">
@@ -1600,7 +1957,7 @@ function TeacherDashboard({
         <section className="teacher-main">
           <header className="teacher-page-head">
             <div>
-              <h2>{activePage === 'students' ? '학생 관리' : '교사용 보기'} <span>{activePage === 'students' ? '등록' : pending.length || 1}</span></h2>
+              <h2>{activePage === 'students' ? '학생 관리' : '교사용 보기'} <span>{activePage === 'students' ? '등록' : pendingCards.length}</span></h2>
             </div>
             <div className="teacher-page-profile">
               <img src={appAssets.teacher.teacherAvatar} alt="" draggable={false} />
@@ -1609,36 +1966,39 @@ function TeacherDashboard({
           </header>
 
           {activePage === 'students' ? (
-            <TeacherStudentManagement onClassEntryReady={onClassEntryReady} />
+            <TeacherStudentManagement
+              onClassEntryReady={onClassEntryReady}
+              onClassEntryRosterPrepared={onClassEntryRosterPrepared}
+            />
           ) : (
             <>
               <section className="teacher-metric-row" aria-label="기록 상태 요약">
                 <article className="metric-card emphasis">
                   <ClipboardList size={28} />
-                  <strong>{studentCount || 1}명</strong>
-                  <span>오늘 탐색한 학생</span>
+                  <strong>{learningCards.length}개</strong>
+                  <span>학생 학습 카드</span>
                 </article>
                 <article className="metric-card">
                   <CheckCircle2 size={28} />
-                  <strong>{completed.length}건</strong>
-                  <span>이해 확인 완료</span>
+                  <strong>{completedCards.length}개</strong>
+                  <span>확인 완료 카드</span>
                 </article>
                 <article className="metric-card">
                   <HeartHandshake size={28} />
-                  <strong>{supportRequests.length}건</strong>
-                  <span>지원 요청</span>
+                  <strong>{supportRequestCards.length}개</strong>
+                  <span>지원 확인 카드</span>
                 </article>
               </section>
 
               <section className="teacher-toolbar">
                 <div>
-                  <h3>학생 탐색 기록</h3>
-                  <p>학생들의 탐색 활동과 교사 확인이 필요한 기록을 살펴봅니다.</p>
+                  <h3>학생 학습 카드</h3>
+                  <p>{studentCount}명의 저장 기록과 선택 근거를 학생별 학습 단위로 봅니다.</p>
                 </div>
                 <div className="teacher-toolbar-actions">
                   <button className="secondary-cta compact" type="button">
                     <CalendarDays size={18} />
-                    {formatDate(records[0]?.createdAt ?? logs[0]?.createdAt ?? new Date().toISOString())}
+                    {formatDate(displayDate)}
                   </button>
                   <button className="secondary-cta compact" type="button">
                     <Filter size={18} />
@@ -1652,53 +2012,82 @@ function TeacherDashboard({
 
               <section className={`teacher-content-grid ${drawerLog ? 'drawer-open' : 'is-empty'}`}>
                 <div className="teacher-content-main">
-                  <div className="teacher-table-card">
-                    <div className="teacher-table-head" aria-hidden="true">
-                      <span>학생 이름</span>
-                      <span>직업</span>
-                      <span>탐색 단계</span>
-                      <span>이해 확인</span>
-                      <span>탐색 시간</span>
-                      <span>기록 시간</span>
-                    </div>
-                    <div className="table-like teacher-record-list">
-                      {orderedLogs.map((log) => {
-                        const isOpen = drawerLog?.id === log.id;
-                        return (
-                          <button
-                            key={log.id}
-                            className={isOpen ? 'review-row is-open' : 'review-row'}
-                            type="button"
-                            onClick={() => onOpen(log.id)}
-                          >
-                            <img src={appAssets.teacher.studentAvatars} alt="" draggable={false} />
-                            <strong>{log.studentName}</strong>
-                            <span>{log.jobTitle}</span>
-                            <span>{log.stageLabel}</span>
-                            <em>{log.status === '기록 완료' ? '완료' : log.status === '저장 오류' ? '저장 확인 필요' : '확인 필요'}</em>
-                            <span>{formatMinutesAgo(log.createdAt)}</span>
-                            <span>{formatDateTime(log.createdAt)}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <section className="teacher-learning-card-list" aria-label="학생 학습 카드 목록">
+                    {hasLearningCards ? learningCards.map((card) => {
+                      const statusClassName = getTeacherLearningStatusClass(card.status);
+                      const pendingLogIds = card.logs
+                        .filter((log) => log.status === '확인 대기' || log.status === '저장 오류')
+                        .map((log) => log.id);
+                      const cardVisual = card.primaryLog ? getLogVisual(card.primaryLog).image : getJobVisual(card.jobId).diorama;
+                      const primaryLogId = card.primaryLog?.id;
+                      return (
+                        <article key={card.id} className="teacher-learning-card">
+                          <header className="teacher-learning-card-head">
+                            <img src={cardVisual} alt="" draggable={false} />
+                            <div>
+                              <span>{card.studentName}</span>
+                              <strong>{card.jobTitle} 학습 카드</strong>
+                              <small>{formatMinutesAgo(card.updatedAt)} 전 · {formatDateTime(card.updatedAt)}</small>
+                            </div>
+                            <em className={`teacher-learning-status ${statusClassName}`}>
+                              {getTeacherLearningStatusLabel(card.status)}
+                            </em>
+                          </header>
 
-                  {highlightedLog && !drawerLog && (
-                    <section className="teacher-student-card">
-                      <img src={getLogVisual(highlightedLog).image} alt="" draggable={false} />
-                      <div>
-                        <span>{highlightedLog.studentName} · {highlightedLog.jobTitle}</span>
-                        <strong>{highlightedLog.stageLabel}</strong>
-                        <p>{buildTeacherSessionSummary(highlightedLog).summaryForTeacher}</p>
-                        <small>{buildTeacherSessionSummary(highlightedLog).nextInstructionGuide[0]?.action}</small>
+                          <div className="teacher-learning-card-summary" aria-label={`${card.studentName} 학습 요약`}>
+                            <div>
+                              <span>기억 장면</span>
+                              <strong>{card.memorableScene}</strong>
+                            </div>
+                            <div>
+                              <span>학생 생각</span>
+                              <strong>{card.studentThought}</strong>
+                            </div>
+                          </div>
+
+                          <p className="teacher-learning-note">{card.edenNote}</p>
+
+                          <div className="teacher-learning-evidence-list" aria-label={`${card.studentName} 선택 근거`}>
+                            {card.logs.length ? card.logs.map((log) => {
+                              const isOpen = drawerLog?.id === log.id;
+                              return (
+                                <button
+                                  key={log.id}
+                                  className={isOpen ? 'teacher-evidence-chip is-open' : 'teacher-evidence-chip'}
+                                  type="button"
+                                  onClick={() => onOpen(log.id)}
+                                >
+                                  <span>{getTeacherLogSceneName(log)}</span>
+                                  <strong>{getTeacherLogExpressionLabel(log)}</strong>
+                                  <small>{responseModeLabels[log.responseMode ?? 'none']} · {getTeacherLearningStatusLabel(log.status)}</small>
+                                </button>
+                              );
+                            }) : (
+                              <span className="teacher-learning-empty-evidence">저장된 학습 정리 카드입니다.</span>
+                            )}
+                          </div>
+
+                          {primaryLogId && (
+                            <div className="teacher-learning-card-actions">
+                              {pendingLogIds.length > 0 && (
+                                <button type="button" onClick={() => pendingLogIds.forEach((id) => onConfirm(id, 'accepted'))}>
+                                  카드 근거 채택
+                                </button>
+                              )}
+                              <button type="button" onClick={() => onOpen(primaryLogId)}>
+                                대표 근거 보기
+                              </button>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    }) : (
+                      <div className="teacher-record-empty" role="status">
+                        <strong>아직 학생 학습 카드가 없습니다</strong>
+                        <span>학생이 클래스 입장 후 체험을 마치면 실제 기록만 이곳에 표시됩니다.</span>
                       </div>
-                      <div className="teacher-action-stack">
-                        <button type="button" onClick={() => onConfirm(highlightedLog.id, 'accepted')}>근거 채택</button>
-                        <button type="button" onClick={() => onOpen(highlightedLog.id)}>자세히 보기</button>
-                      </div>
-                    </section>
-                  )}
+                    )}
+                  </section>
                 </div>
 
                 {drawerLog ? <TeacherDrawer log={drawerLog} onClose={onClose} onConfirm={onConfirm} /> : null}
@@ -1712,7 +2101,7 @@ function TeacherDashboard({
 }
 
 type RosterDraft = {
-  studentCode: string;
+  classLabel: string;
   displayName: string;
   classNumber: string;
 };
@@ -1723,14 +2112,14 @@ type RosterNotice = {
 };
 
 const emptyRosterDraft: RosterDraft = {
-  studentCode: '',
+  classLabel: '',
   displayName: '',
   classNumber: ''
 };
 
 function draftFromStudent(student: TeacherRosterStudent): RosterDraft {
   return {
-    studentCode: student.studentCode,
+    classLabel: '',
     displayName: student.displayName,
     classNumber: student.classNumber ?? ''
   };
@@ -1745,12 +2134,91 @@ function studentLabel(student: ClassEntryStudent) {
   return student.displayName || '학생';
 }
 
-function buildStudentDraftPayload(draft: RosterDraft) {
+const classEntryStudentCollator = new Intl.Collator('ko-KR', { numeric: true, sensitivity: 'base' });
+
+function classEntryStudentSearchText(student: ClassEntryStudent) {
+  return `${student.displayName} ${student.classNumber ?? ''}`.trim().toLowerCase();
+}
+
+function compareClassEntryStudents(first: ClassEntryStudent, second: ClassEntryStudent) {
+  const firstNumber = first.classNumber?.trim();
+  const secondNumber = second.classNumber?.trim();
+
+  if (firstNumber && secondNumber) {
+    const numberComparison = classEntryStudentCollator.compare(firstNumber, secondNumber);
+    if (numberComparison !== 0) return numberComparison;
+  } else if (firstNumber) {
+    return -1;
+  } else if (secondNumber) {
+    return 1;
+  }
+
+  return classEntryStudentCollator.compare(studentLabel(first), studentLabel(second));
+}
+
+export function getClassEntryPickerStudents(students: ClassEntryStudent[], query = '') {
+  const normalizedQuery = query.trim().toLowerCase();
+  const orderedStudents = [...students].sort(compareClassEntryStudents);
+  if (!normalizedQuery) return orderedStudents;
+  return orderedStudents.filter((student) => classEntryStudentSearchText(student).includes(normalizedQuery));
+}
+
+function generatedStudentCodePart(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 18);
+}
+
+function buildGeneratedStudentCode(classId: string, draft: RosterDraft) {
+  const classPart = generatedStudentCodePart(classId) || 'class';
+  const numberPart = generatedStudentCodePart(draft.classNumber) || 'no-number';
+  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  return `AUTO-${classPart}-${numberPart}-${suffix}`.slice(0, 80);
+}
+
+function buildCreateStudentPayload(classId: string, draft: RosterDraft): TeacherRosterStudentInput {
   return {
-    studentCode: draft.studentCode.trim(),
+    studentCode: buildGeneratedStudentCode(classId, draft),
     displayName: draft.displayName.trim(),
     classNumber: classNumberFromDraft(draft)
   };
+}
+
+function buildUpdateStudentPayload(draft: RosterDraft): Partial<TeacherRosterStudentInput> {
+  return {
+    displayName: draft.displayName.trim(),
+    classNumber: classNumberFromDraft(draft)
+  };
+}
+
+function localClassIdFromLabel(label: string) {
+  const base = generatedStudentCodePart(label) || 'class';
+  return `local-${base}`;
+}
+
+function buildLocalClass(label: string): TeacherClassSummary {
+  return {
+    id: localClassIdFromLabel(label),
+    name: label,
+    gradeLabel: null,
+    schoolYear: new Date().getFullYear(),
+    active: true
+  };
+}
+
+function classEntryStudentsFromRoster(students: TeacherRosterStudent[]): ClassEntryStudent[] {
+  return students
+    .filter((student) => student.active)
+    .map((student) => ({
+      id: student.id,
+      classId: student.classId,
+      studentCode: student.studentCode,
+      displayName: student.displayName,
+      classNumber: student.classNumber
+    }));
 }
 
 function ClassStudentEntryModal({
@@ -1770,10 +2238,13 @@ function ClassStudentEntryModal({
   onClose: () => void;
   onSelect: (student: ClassEntryStudent) => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState('');
   const firstStudentButtonRef = useRef<HTMLButtonElement | null>(null);
   const modalRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const canCloseRef = useRef(!startingStudentId);
+  const visibleStudents = getClassEntryPickerStudents(students, searchQuery);
+  const searchEnabled = students.length > 12;
 
   onCloseRef.current = onClose;
   canCloseRef.current = !startingStudentId;
@@ -1827,7 +2298,10 @@ function ClassStudentEntryModal({
       <section ref={modalRef} className="class-entry-modal" role="dialog" aria-modal="true" aria-labelledby="class-entry-title">
         <header>
           <div>
-            <span>{classLabel}</span>
+            <div className="class-entry-meta">
+              <span>{classLabel}</span>
+              {students.length > 0 && <span>{students.length}명</span>}
+            </div>
             <h3 id="class-entry-title">본인 이름을 선택해요</h3>
             <p>선택하면 바로 직업 체험 화면으로 이동합니다.</p>
           </div>
@@ -1842,25 +2316,47 @@ function ClassStudentEntryModal({
             <span>학생 이름을 불러오는 중입니다.</span>
           </div>
         ) : students.length ? (
-          <div className="class-entry-student-grid" aria-label="학생 이름 선택">
-            {students.map((student, index) => {
-              const starting = startingStudentId === student.id;
-              return (
-                <button
-                  key={student.id}
-                  ref={index === 0 ? firstStudentButtonRef : undefined}
-                  type="button"
-                  onClick={() => onSelect(student)}
+          <>
+            {searchEnabled && (
+              <label className="class-entry-search">
+                <span>이름 또는 번호 찾기</span>
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="예: 김민준, 7"
+                  autoComplete="off"
+                  inputMode="search"
                   disabled={Boolean(startingStudentId)}
-                >
-                  <UserCheck size={22} />
-                  <strong>{studentLabel(student)}</strong>
-                  <span>{student.classNumber ? `${student.classNumber}번` : '학생'}</span>
-                  {starting && <em>시작 중</em>}
-                </button>
-              );
-            })}
-          </div>
+                />
+              </label>
+            )}
+
+            <div className="class-entry-student-grid" aria-label="학생 이름 선택">
+              {visibleStudents.map((student, index) => {
+                const starting = startingStudentId === student.id;
+                return (
+                  <button
+                    key={student.id}
+                    ref={index === 0 ? firstStudentButtonRef : undefined}
+                    type="button"
+                    onClick={() => onSelect(student)}
+                    disabled={Boolean(startingStudentId)}
+                  >
+                    <span className="class-entry-student-number">{student.classNumber ? `${student.classNumber}번` : '학생'}</span>
+                    <strong>{studentLabel(student)}</strong>
+                    {starting && <em>시작 중</em>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {!visibleStudents.length && (
+              <div className="class-entry-alert" role="status">
+                <AlertTriangle size={20} />
+                <span>검색 결과가 없습니다.</span>
+              </div>
+            )}
+          </>
         ) : (
           <div className="class-entry-alert" role="status">
             <AlertTriangle size={20} />
@@ -1880,9 +2376,11 @@ function ClassStudentEntryModal({
 }
 
 function TeacherStudentManagement({
-  onClassEntryReady
+  onClassEntryReady,
+  onClassEntryRosterPrepared
 }: {
   onClassEntryReady: (session: ClassEntrySession) => void;
+  onClassEntryRosterPrepared: (session: ClassEntrySession) => void;
 }) {
   const [teacher, setTeacher] = useState<TeacherSession | null>(null);
   const [classes, setClasses] = useState<TeacherClassSummary[]>([]);
@@ -1895,33 +2393,75 @@ function TeacherStudentManagement({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [classEntryStarting, setClassEntryStarting] = useState(false);
+  const [localRosterMode, setLocalRosterMode] = useState(false);
 
   const selectedClass = classes.find((item) => item.id === selectedClassId);
-  const rosterWritable = canManageRoster(teacher?.role);
+  const rosterWritable = localRosterMode || canManageRoster(teacher?.role);
   const activeStudents = students.filter((student) => student.active);
+  const manualClassLabel = newStudent.classLabel.trim();
+  const selectedClassLabel = selectedClass
+    ? [selectedClass.gradeLabel, selectedClass.name].filter(Boolean).join(' · ')
+    : manualClassLabel || '학년/반을 입력해 주세요';
+  const createFormLocked = !rosterWritable || savingKey === 'new';
+  const createFormReady = rosterWritable && newStudent.displayName.trim().length > 0 && (Boolean(selectedClassId) || manualClassLabel.length > 0);
+  const createFormMessage = !rosterWritable
+    ? teacher?.role === 'support_staff'
+      ? '지원 인력 계정은 학생 등록을 할 수 없습니다.'
+      : '교사 권한을 확인한 뒤 학생을 등록할 수 있습니다.'
+    : status === 'loading'
+      ? '학생 명단을 불러오는 중입니다.'
+      : selectedClassId
+        ? '학생을 등록하면 이 반의 입장 이름 목록에 바로 반영됩니다.'
+        : '학년/반과 이름만 입력하면 학생을 등록할 수 있습니다.';
 
   function updateDrafts(nextStudents: TeacherRosterStudent[]) {
     setDrafts(Object.fromEntries(nextStudents.map((student) => [student.id, draftFromStudent(student)])));
+  }
+
+  function prepareRosterForClass(classSummary: TeacherClassSummary, nextStudents: TeacherRosterStudent[], local: boolean) {
+    if (local) {
+      const currentSnapshot = readLocalRosterSnapshot();
+      const nextClasses = [
+        classSummary,
+        ...(currentSnapshot?.classes ?? classes).filter((item) => item.id !== classSummary.id)
+      ];
+      writeLocalRosterSnapshot({
+        classes: nextClasses,
+        selectedClassId: classSummary.id,
+        studentsByClassId: {
+          ...(currentSnapshot?.studentsByClassId ?? {}),
+          [classSummary.id]: classEntryStudentsFromRoster(nextStudents)
+        },
+        updatedAt: new Date().toISOString()
+      });
+    }
+    onClassEntryRosterPrepared({
+      classLabel: classSummary.name,
+      students: classEntryStudentsFromRoster(nextStudents),
+      local
+    });
   }
 
   async function refreshStudents(classId = selectedClassId) {
     if (!classId) {
       setStudents([]);
       setDrafts({});
-      return;
+      return [];
     }
 
     const nextStudents = await fetchClassStudents(classId);
     setStudents(nextStudents);
     updateDrafts(nextStudents);
+    return nextStudents;
   }
 
   async function loadRosterPage() {
     setStatus('loading');
     setLoadError(null);
     setNotice(null);
-    try {
-      const [nextTeacher, nextClasses] = await Promise.all([fetchTeacherMe(), fetchTeacherClasses()]);
+      setLocalRosterMode(false);
+      try {
+        const [nextTeacher, nextClasses] = await Promise.all([fetchTeacherMe(), fetchTeacherClasses()]);
       const activeClasses = nextClasses.filter((item) => item.active !== false);
       const nextClassId = activeClasses[0]?.id ?? nextClasses[0]?.id ?? '';
       setTeacher(nextTeacher);
@@ -1937,8 +2477,42 @@ function TeacherStudentManagement({
       }
       setStatus('ready');
     } catch (error) {
-      setStatus('error');
+      setTeacher({ id: 'local-teacher', schoolId: 'local-school', role: 'teacher', displayName: '선생님' });
+      setClasses([]);
+      setSelectedClassId('');
+      setStudents([]);
+      setDrafts({});
+      setLocalRosterMode(true);
+      setStatus('ready');
       setLoadError(getRosterErrorMessage(error));
+      const localSnapshot = readLocalRosterSnapshot();
+      if (localSnapshot) {
+        const nextClasses = localSnapshot.classes.filter((item) => item.active !== false);
+        const nextClassId = nextClasses.some((item) => item.id === localSnapshot.selectedClassId)
+          ? localSnapshot.selectedClassId ?? ''
+          : nextClasses[0]?.id ?? '';
+        const nextStudents = nextClassId ? (localSnapshot.studentsByClassId[nextClassId] ?? []) : [];
+        setClasses(nextClasses);
+        setSelectedClassId(nextClassId);
+        setStudents(nextStudents.map((student) => ({
+          ...student,
+          studentCode: student.studentCode ?? buildGeneratedStudentCode(student.classId, {
+            classLabel: '',
+            displayName: student.displayName,
+            classNumber: student.classNumber ?? ''
+          }),
+          active: true
+        })));
+        updateDrafts(nextStudents.map((student) => ({
+          ...student,
+          studentCode: student.studentCode ?? buildGeneratedStudentCode(student.classId, {
+            classLabel: '',
+            displayName: student.displayName,
+            classNumber: student.classNumber ?? ''
+          }),
+          active: true
+        })));
+      }
     }
   }
 
@@ -1962,9 +2536,29 @@ function TeacherStudentManagement({
   async function handleClassChange(classId: string) {
     setSelectedClassId(classId);
     setNotice(null);
+    if (localRosterMode) {
+      const localSnapshot = readLocalRosterSnapshot();
+      const nextStudents = localSnapshot?.studentsByClassId[classId] ?? [];
+      const rosterStudents = nextStudents.map((student) => ({
+        ...student,
+        studentCode: student.studentCode ?? buildGeneratedStudentCode(student.classId, {
+          classLabel: '',
+          displayName: student.displayName,
+          classNumber: student.classNumber ?? ''
+        }),
+        active: true
+      }));
+      setStudents(rosterStudents);
+      updateDrafts(rosterStudents);
+      const nextClass = classes.find((item) => item.id === classId);
+      if (nextClass && rosterStudents.length) prepareRosterForClass(nextClass, rosterStudents, true);
+      return;
+    }
     setStatus('loading');
     try {
-      await refreshStudents(classId);
+      const nextStudents = await refreshStudents(classId);
+      const nextClass = classes.find((item) => item.id === classId);
+      if (nextClass && nextStudents.length) prepareRosterForClass(nextClass, nextStudents, false);
       setStatus('ready');
     } catch (error) {
       setStatus('error');
@@ -1974,14 +2568,66 @@ function TeacherStudentManagement({
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedClassId || !rosterWritable) return;
+    if (!rosterWritable) return;
+
+    const displayName = newStudent.displayName.trim();
+    const classLabel = newStudent.classLabel.trim();
+    if (!displayName) {
+      setNotice({ kind: 'error', message: '학생 이름을 입력해 주세요.' });
+      return;
+    }
+    if (!selectedClassId && !classLabel) {
+      setNotice({ kind: 'error', message: '학년/반을 입력해 주세요.' });
+      return;
+    }
 
     setSavingKey('new');
     setNotice(null);
     try {
-      await createRosterStudent(selectedClassId, buildStudentDraftPayload(newStudent));
+      if (localRosterMode) {
+        const localClass = selectedClass ?? buildLocalClass(classLabel);
+        const payload = buildCreateStudentPayload(localClass.id, newStudent);
+        const now = new Date().toISOString();
+        const createdStudent: TeacherRosterStudent = {
+          id: `local-student-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+          classId: localClass.id,
+          studentCode: payload.studentCode,
+          displayName: payload.displayName,
+          classNumber: payload.classNumber ?? null,
+          active: true,
+          createdAt: now,
+          updatedAt: now
+        };
+        if (!selectedClass) {
+          setClasses([localClass]);
+          setSelectedClassId(localClass.id);
+        }
+        const nextStudents = [...students, createdStudent];
+        setStudents(nextStudents);
+        setDrafts((current) => ({ ...current, [createdStudent.id]: draftFromStudent(createdStudent) }));
+        prepareRosterForClass(localClass, nextStudents, true);
+        setNewStudent({ classLabel: selectedClass ? '' : localClass.name, displayName: '', classNumber: '' });
+        setNotice({ kind: 'success', message: '학생을 등록했습니다. 클래스 입장 시작에서 이름 선택을 확인할 수 있습니다.' });
+        return;
+      }
+
+      let classId = selectedClassId;
+      let classForEntry = selectedClass ?? classes.find((item) => item.id === classId);
+      if (!classId) {
+        const createdClass = await createTeacherClass({
+          name: classLabel,
+          schoolYear: new Date().getFullYear()
+        });
+        setClasses((current) => [createdClass, ...current]);
+        setSelectedClassId(createdClass.id);
+        classId = createdClass.id;
+        classForEntry = createdClass;
+      }
+
+      await createRosterStudent(classId, buildCreateStudentPayload(classId, newStudent));
       setNewStudent(emptyRosterDraft);
-      await refreshStudents(selectedClassId);
+      const nextStudents = await refreshStudents(classId);
+      if (classForEntry && nextStudents.length) prepareRosterForClass(classForEntry, nextStudents, false);
       setNotice({ kind: 'success', message: '학생을 등록했습니다.' });
     } catch (error) {
       setNotice({ kind: 'error', message: getRosterErrorMessage(error) });
@@ -1997,9 +2643,26 @@ function TeacherStudentManagement({
     setSavingKey(`save-${student.id}`);
     setNotice(null);
     try {
-      const updated = await updateRosterStudent(student.id, buildStudentDraftPayload(draft));
-      setStudents((current) => current.map((item) => (item.id === student.id ? updated : item)));
+      if (localRosterMode) {
+        const updated: TeacherRosterStudent = {
+          ...student,
+          displayName: draft.displayName.trim(),
+          classNumber: classNumberFromDraft(draft),
+          updatedAt: new Date().toISOString()
+        };
+        const nextStudents = students.map((item) => (item.id === student.id ? updated : item));
+        setStudents(nextStudents);
+        setDrafts((current) => ({ ...current, [student.id]: draftFromStudent(updated) }));
+        if (selectedClass) prepareRosterForClass(selectedClass, nextStudents, true);
+        setNotice({ kind: 'success', message: `${studentLabel(updated)} 정보를 저장했습니다.` });
+        return;
+      }
+
+      const updated = await updateRosterStudent(student.id, buildUpdateStudentPayload(draft));
+      const nextStudents = students.map((item) => (item.id === student.id ? updated : item));
+      setStudents(nextStudents);
       setDrafts((current) => ({ ...current, [student.id]: draftFromStudent(updated) }));
+      if (selectedClass) prepareRosterForClass(selectedClass, nextStudents, false);
       setNotice({ kind: 'success', message: `${studentLabel(updated)} 정보를 저장했습니다.` });
     } catch (error) {
       setNotice({ kind: 'error', message: getRosterErrorMessage(error) });
@@ -2014,9 +2677,25 @@ function TeacherStudentManagement({
     setSavingKey(`active-${student.id}`);
     setNotice(null);
     try {
+      if (localRosterMode) {
+        const updated: TeacherRosterStudent = {
+          ...student,
+          active: !student.active,
+          updatedAt: new Date().toISOString()
+        };
+        const nextStudents = students.map((item) => (item.id === student.id ? updated : item));
+        setStudents(nextStudents);
+        setDrafts((current) => ({ ...current, [student.id]: draftFromStudent(updated) }));
+        if (selectedClass) prepareRosterForClass(selectedClass, nextStudents, true);
+        setNotice({ kind: 'success', message: `${studentLabel(updated)} 상태를 변경했습니다.` });
+        return;
+      }
+
       const updated = await updateRosterStudent(student.id, { active: !student.active });
-      setStudents((current) => current.map((item) => (item.id === student.id ? updated : item)));
+      const nextStudents = students.map((item) => (item.id === student.id ? updated : item));
+      setStudents(nextStudents);
       setDrafts((current) => ({ ...current, [student.id]: draftFromStudent(updated) }));
+      if (selectedClass) prepareRosterForClass(selectedClass, nextStudents, false);
       setNotice({ kind: 'success', message: `${studentLabel(updated)} 상태를 변경했습니다.` });
     } catch (error) {
       setNotice({ kind: 'error', message: getRosterErrorMessage(error) });
@@ -2026,7 +2705,16 @@ function TeacherStudentManagement({
   }
 
   async function handleClassEntryStart() {
-    if (!selectedClass || !rosterWritable || activeStudents.length === 0) return;
+    if (!rosterWritable || activeStudents.length === 0) return;
+    if (localRosterMode) {
+      onClassEntryReady({
+        classLabel: selectedClass?.name ?? selectedClassLabel,
+        students: classEntryStudentsFromRoster(activeStudents),
+        local: true
+      });
+      return;
+    }
+    if (!selectedClass) return;
 
     setClassEntryStarting(true);
     setNotice(null);
@@ -2089,10 +2777,21 @@ function TeacherStudentManagement({
           </select>
         </label>
         <div className="student-management-class-meta">
-          <strong>{selectedClass?.name ?? '반을 선택해 주세요'}</strong>
-          <span>{teacher ? `${teacher.displayName} · ${teacher.role === 'support_staff' ? '지원 인력' : '교사'}` : '교사 정보를 불러오는 중'}</span>
+          <strong>{selectedClass?.name ?? (localRosterMode ? '새 반 입력 가능' : '반을 선택해 주세요')}</strong>
+          <span>
+            {teacher
+              ? `${teacher.displayName} · ${localRosterMode ? '로컬 등록' : teacher.role === 'support_staff' ? '지원 인력' : '교사'}`
+              : '교사 정보를 불러오는 중'}
+          </span>
         </div>
       </div>
+
+      {localRosterMode && loadError && (
+        <div className="student-management-alert is-readonly" role="status">
+          <ShieldAlert size={20} />
+          <span>서버 명단을 불러오지 못해 현재 화면에서 먼저 등록합니다. 새로고침하면 서버 명단을 다시 확인합니다.</span>
+        </div>
+      )}
 
       {status === 'error' && (
         <div className="student-management-alert is-error" role="alert">
@@ -2116,15 +2815,23 @@ function TeacherStudentManagement({
         </div>
       )}
 
-      {rosterWritable && (
-        <form className="student-create-form" onSubmit={handleCreate}>
-          <label>
-            <span>학생 코드</span>
+      <section className="student-create-section" aria-labelledby="student-create-title">
+        <div className="student-create-section-head">
+          <div>
+            <span>학생 생성</span>
+            <h4 id="student-create-title">학생 등록</h4>
+          </div>
+          <p>{createFormMessage}</p>
+        </div>
+        <form className="student-create-form" onSubmit={handleCreate} aria-disabled={!rosterWritable}>
+          <label className="student-create-class-field">
+            <span>학년/반</span>
             <input
-              value={newStudent.studentCode}
-              onChange={(event) => setNewStudent((current) => ({ ...current, studentCode: event.target.value }))}
-              placeholder="예: S-102"
-              required
+              value={selectedClass ? selectedClassLabel : newStudent.classLabel}
+              onChange={(event) => setNewStudent((current) => ({ ...current, classLabel: event.target.value }))}
+              placeholder="예: 3학년 2반"
+              disabled={Boolean(selectedClass) || createFormLocked}
+              required={!selectedClassId}
             />
           </label>
           <label>
@@ -2133,6 +2840,7 @@ function TeacherStudentManagement({
               value={newStudent.displayName}
               onChange={(event) => setNewStudent((current) => ({ ...current, displayName: event.target.value }))}
               placeholder="학생 이름"
+              disabled={createFormLocked}
               required
             />
           </label>
@@ -2142,15 +2850,16 @@ function TeacherStudentManagement({
               value={newStudent.classNumber}
               onChange={(event) => setNewStudent((current) => ({ ...current, classNumber: event.target.value }))}
               inputMode="numeric"
-              placeholder="선택"
+              placeholder="생략 가능"
+              disabled={createFormLocked}
             />
           </label>
-          <button type="submit" disabled={savingKey === 'new' || !selectedClassId}>
+          <button type="submit" disabled={!createFormReady || savingKey === 'new'}>
             <UserPlus size={18} />
             {savingKey === 'new' ? '등록 중' : '학생 등록'}
           </button>
         </form>
-      )}
+      </section>
 
       <div className="student-roster-list" aria-busy={status === 'loading'}>
         {status === 'loading' && <p className="student-roster-empty">학생 정보를 불러오는 중입니다.</p>}
@@ -2171,17 +2880,6 @@ function TeacherStudentManagement({
               </div>
 
               <div className="student-roster-fields">
-                <label>
-                  <span>코드</span>
-                  <input
-                    value={draft.studentCode}
-                    onChange={(event) => setDrafts((current) => ({
-                      ...current,
-                      [student.id]: { ...draft, studentCode: event.target.value }
-                    }))}
-                    disabled={!rosterWritable}
-                  />
-                </label>
                 <label>
                   <span>이름</span>
                   <input

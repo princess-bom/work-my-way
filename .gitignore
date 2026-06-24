@@ -11,6 +11,7 @@ dist/
 .omx/
 .gstack/
 .omo/
+supabase/.temp/
 
 # Environment and secrets
 .env

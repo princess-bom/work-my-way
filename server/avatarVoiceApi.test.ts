@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { avatarVoiceHandler, buildOpenAISpeechRequestBody, createAvatarVoiceHandler, normalizeAvatarVoicePayload } from './avatarVoiceApi';
-import type { Queryable } from './db/client';
+import { avatarVoiceHandler, buildOpenAISpeechRequestBody, createAvatarVoiceHandler, normalizeAvatarVoicePayload } from './avatarVoiceApi.ts';
+import type { Queryable } from './db/client.ts';
 import type { QueryResult, QueryResultRow } from 'pg';
-import { createSessionToken, encryptSecret, hashToken, sessionCookie, signStudentToken } from './api/security';
+import { createSessionToken, encryptSecret, hashToken, sessionCookie, signStudentToken } from './api/security.ts';
 
 const originalEnv = {
   SESSION_SECRET: process.env.SESSION_SECRET,

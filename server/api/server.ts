@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { createApiApp } from './app';
+import { createApiApp } from './app.ts';
 
 const port = Number(process.env.API_PORT || 8787);
 const app = createApiApp();

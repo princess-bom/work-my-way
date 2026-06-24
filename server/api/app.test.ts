@@ -1,9 +1,9 @@
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createApiApp } from './app';
-import type { Queryable } from '../db/client';
+import { createApiApp } from './app.ts';
+import type { Queryable } from '../db/client.ts';
 import type { QueryResult, QueryResultRow } from 'pg';
-import { hashSecret, hashToken, teacherSessionCookieName, verifyStudentToken } from './security';
+import { hashSecret, hashToken, teacherSessionCookieName, verifyStudentToken } from './security.ts';
 
 const originalEnv = {
   SESSION_SECRET: process.env.SESSION_SECRET,
@@ -386,6 +386,35 @@ class StudentLaunchDb implements Queryable {
     if (normalized.startsWith('select id from classes where id = $1')) {
       const classRow = this.classes.find((item) => item.id === params[0] && item.school_id === params[1] && item.active);
       return rows(classRow ? [row<T>({ id: classRow.id })] : []);
+    }
+    if (normalized.startsWith('insert into classes')) {
+      const classRow = {
+        id: `class-${this.classes.length + 1}`,
+        school_id: String(params[0]),
+        name: String(params[1]),
+        grade_label: params[2] === null ? null : String(params[2]),
+        school_year: Number(params[3]),
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      this.classes.push(classRow);
+      return rows([row<T>(classRow)]);
+    }
+    if (normalized.startsWith('insert into class_teacher_memberships')) {
+      const existing = this.memberships.find((item) => item.class_id === params[0] && item.teacher_id === params[1]);
+      if (existing) {
+        existing.membership_role = 'teacher';
+        existing.active = true;
+      } else {
+        this.memberships.push({
+          class_id: String(params[0]),
+          teacher_id: String(params[1]),
+          membership_role: 'teacher',
+          active: true
+        });
+      }
+      return rows([]);
     }
     if (normalized.startsWith('select id from class_teacher_memberships')) {
       const membership = this.memberships.find(
@@ -801,15 +830,29 @@ describe('local api app', () => {
       .expect(409, { error: 'duplicate_student_code' });
   });
 
-  it('keeps class creation and teacher-account management admin-only', async () => {
+  it('allows assigned teachers to create classes while keeping teacher-account management admin-only', async () => {
     const db = new StudentLaunchDb();
     const app = createApiApp(db);
 
-    await request(app)
+    const classResponse = await request(app)
       .post('/api/classes')
       .set('Cookie', `${teacherSessionCookieName}=${db.teacherToken}`)
-      .send({ name: '교사 생성 시도', schoolYear: 2026 })
-      .expect(403, { error: 'admin_required' });
+      .send({ name: '3학년 2반', schoolYear: 2026 })
+      .expect(201);
+    expect(classResponse.body.class).toMatchObject({ name: '3학년 2반', schoolYear: 2026, active: true });
+    expect(db.memberships).toContainEqual(expect.objectContaining({
+      class_id: classResponse.body.class.id,
+      teacher_id: 'teacher-1',
+      membership_role: 'teacher',
+      active: true
+    }));
+
+    await request(app)
+      .post('/api/classes')
+      .set('Cookie', `${teacherSessionCookieName}=${db.supportToken}`)
+      .send({ name: '지원 인력 생성 시도', schoolYear: 2026 })
+      .expect(403, { error: 'roster_write_denied' });
+
     await request(app)
       .post('/api/teacher/accounts')
       .set('Cookie', `${teacherSessionCookieName}=${db.teacherToken}`)

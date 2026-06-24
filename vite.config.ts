@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
-import { avatarVoiceHandler } from './server/avatarVoiceApi';
+import { avatarVoiceHandler } from './server/avatarVoiceApi.ts';
 
 function voiceApiPlugin(): Plugin {
   return {

@@ -51,9 +51,40 @@ export type ApiStudentSessionContext = {
 export type DemoStudentSessionContext = {
   mode: 'demo';
   startedAt: string;
+  classId?: string;
+  studentId?: string;
+  displayName?: string;
+  classNumber?: string | null;
 };
 
 export type StudentSessionContext = ApiStudentSessionContext | DemoStudentSessionContext;
+
+export type LocalClassEntryStudent = {
+  id: string;
+  classId: string;
+  studentCode?: string;
+  displayName: string;
+  classNumber?: string | null;
+};
+
+export type LocalClassEntrySession = {
+  classLabel: string;
+  students: LocalClassEntryStudent[];
+  local: true;
+};
+
+export type LocalRosterSnapshot = {
+  classes: Array<{
+    id: string;
+    name: string;
+    gradeLabel?: string | null;
+    schoolYear?: number | null;
+    active?: boolean;
+  }>;
+  selectedClassId?: string;
+  studentsByClassId: Record<string, LocalClassEntryStudent[]>;
+  updatedAt: string;
+};
 
 export type AacOptionType = 'object' | 'action' | 'support';
 
@@ -161,6 +192,7 @@ export type AppState = {
   resting: boolean;
   studentSession?: StudentSessionContext;
   teacherEvidenceTarget?: TeacherEvidenceTarget;
+  localClassEntrySession?: LocalClassEntrySession;
   teacherDrawerLogId: string | null;
   teacherLogs: TeacherLog[];
   records: ExplorationRecord[];

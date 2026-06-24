@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getPool, type Queryable } from './db/client';
-import { decryptSecret, hashToken, parseCookies, teacherSessionCookieName, verifyStudentToken } from './api/security';
+import { getPool, type Queryable } from './db/client.ts';
+import { decryptSecret, hashToken, parseCookies, teacherSessionCookieName, verifyStudentToken } from './api/security.ts';
 
 type AvatarVoiceProvider = 'openai';
 

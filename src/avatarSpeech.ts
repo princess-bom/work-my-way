@@ -32,6 +32,11 @@ function reportAvatarSpeechFallback(error: unknown) {
   console.warn('Avatar speech request/playback failed; falling back to browser speech synthesis.', error);
 }
 
+function reportAvatarSpeechFailure(error: unknown) {
+  if (typeof console === 'undefined') return;
+  console.error('Avatar speech request/playback failed; browser speech fallback is disabled for this session.', error);
+}
+
 function reportUnexpectedAvatarSpeechError(error: unknown): never {
   if (typeof console !== 'undefined') {
     console.error('Unexpected avatar speech failure; browser speech fallback is limited to request/playback errors.', error);
@@ -42,6 +47,10 @@ function reportUnexpectedAvatarSpeechError(error: unknown): never {
 function isExpectedAvatarSpeechFallbackError(error: unknown): error is Error {
   if (typeof DOMException !== 'undefined' && error instanceof DOMException) return true;
   return error instanceof Error;
+}
+
+function allowsBrowserFallback(context?: AvatarSpeechRequestContext) {
+  return context?.allowBrowserFallback === true;
 }
 
 export async function speakText(text: string, context?: AvatarSpeechRequestContext) {
@@ -74,6 +83,10 @@ export async function speakText(text: string, context?: AvatarSpeechRequestConte
     if (requestToken !== speechRequestToken) return;
     if (!isExpectedAvatarSpeechFallbackError(error)) reportUnexpectedAvatarSpeechError(error);
     releaseActiveSpeechAudio();
+    if (!allowsBrowserFallback(context)) {
+      reportAvatarSpeechFailure(error);
+      return;
+    }
     reportAvatarSpeechFallback(error);
     speakTextWithBrowser(text);
   }

@@ -8,6 +8,7 @@
     "api:dev": "tsx server/api/server.ts",
     "api:migrate": "tsx server/db/migrate.ts",
     "api:seed": "tsx server/db/seed.ts",
+    "api:seed:live": "tsx server/db/seed-live-classroom.ts",
     "api:test:pg": "tsx server/api/smoke-postgres.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",

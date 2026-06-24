@@ -8,6 +8,7 @@ import {
   createExplorationSessionResponse,
   createRecord,
   createRosterStudent,
+  createTeacherClass,
   fetchClassStudents,
   fetchClassEntrySession,
   fetchTeacherClasses,
@@ -27,11 +28,16 @@ import {
   applyStartedStudentSession,
   buildClassEntryUrl,
   buildStudentEntryUrl,
+  buildTeacherLearningCards,
   buildTeacherSessionSummary,
   getAppHistoryView,
+  getClassEntrySessionFromLocalRosterSnapshot,
+  getClassEntryPickerStudents,
   getClassEntryTokenFromSearch,
   getIntroContent,
   getNextIntroJobId,
+  getPersistedClassEntrySession,
+  getPersistedLocalClassEntrySession,
   getSummaryEncouragement,
   getSummaryMotivation,
   getSummaryStudentExpression,
@@ -43,7 +49,7 @@ import {
 import { getSceneImage } from './assets';
 import { requestAvatarSpeech } from './avatarVoiceClient';
 import { getJob, getSceneAacOptions, getSceneNarration, getSceneObservationPrompt, initialState, jobs } from './data';
-import type { TeacherDecision, TeacherLog } from './domain';
+import type { AppState, ExplorationRecord, LocalRosterSnapshot, TeacherDecision, TeacherLog } from './domain';
 import { validateStudentSceneTurnOutput } from './aiPromptContracts';
 import {
   createGuardedSceneReply,
@@ -105,6 +111,196 @@ describe('student exploration copy and records', () => {
     expect(restored.visualSupportOpen).toBe(false);
     expect(restored.resting).toBe(false);
     expect(restored.replaying).toBe(false);
+  });
+
+  it('restores a local class-entry roster after the teacher page reloads', () => {
+    const restored = getPersistedLocalClassEntrySession({
+      ...initialState,
+      localClassEntrySession: {
+        local: true,
+        classLabel: '1반',
+        students: [
+          {
+            id: 'local-student-1',
+            classId: 'local-1',
+            studentCode: 'AUTO-HONG',
+            displayName: '홍길동',
+            classNumber: '1'
+          }
+        ]
+      }
+    } as Partial<AppState> & {
+      localClassEntrySession: {
+        local: true;
+        classLabel: string;
+        students: Array<{
+          id: string;
+          classId: string;
+          studentCode: string;
+          displayName: string;
+          classNumber: string;
+        }>;
+      };
+    });
+
+    expect(restored).toMatchObject({
+      local: true,
+      classLabel: '1반',
+      students: [{ displayName: '홍길동', classNumber: '1' }]
+    });
+  });
+
+  it('recovers class-entry names from the persisted local roster when the API is unavailable', () => {
+    const snapshot: LocalRosterSnapshot = {
+      classes: [{ id: 'local-1', name: '1반', schoolYear: 2026, active: true }],
+      selectedClassId: 'local-1',
+      studentsByClassId: {
+        'local-1': [
+          {
+            id: 'local-student-1',
+            classId: 'local-1',
+            studentCode: 'AUTO-HONG',
+            displayName: '홍길동',
+            classNumber: '1'
+          }
+        ]
+      },
+      updatedAt: '2026-06-23T13:20:00.000Z'
+    };
+
+    expect(getClassEntrySessionFromLocalRosterSnapshot(snapshot)).toMatchObject({
+      local: true,
+      classLabel: '1반',
+      students: [{ displayName: '홍길동', classNumber: '1' }]
+    });
+  });
+
+  it('initializes class-entry state from a local roster snapshot when the app session is missing it', () => {
+    const snapshot: LocalRosterSnapshot = {
+      classes: [{ id: 'local-1', name: '1반', schoolYear: 2026, active: true }],
+      selectedClassId: 'local-1',
+      studentsByClassId: {
+        'local-1': [
+          {
+            id: 'local-student-1',
+            classId: 'local-1',
+            studentCode: 'AUTO-HONG',
+            displayName: '홍길동',
+            classNumber: '1'
+          }
+        ]
+      },
+      updatedAt: '2026-06-23T13:20:00.000Z'
+    };
+
+    const restoredState = mergePersistedStateForInitialLoad({ ...initialState }, null, snapshot);
+
+    expect(restoredState.localClassEntrySession).toMatchObject({
+      local: true,
+      classLabel: '1반',
+      students: [{ displayName: '홍길동', classNumber: '1' }]
+    });
+    expect(getPersistedClassEntrySession({ ...initialState }, snapshot)).toMatchObject({
+      local: true,
+      classLabel: '1반',
+      students: [{ displayName: '홍길동', classNumber: '1' }]
+    });
+  });
+
+  it('keeps the class-entry picker ordered and searchable for full class rosters', () => {
+    const students = Array.from({ length: 30 }, (_, index) => {
+      const classNumber = String(30 - index);
+      return {
+        id: `student-${classNumber}`,
+        classId: 'class-1',
+        displayName: `학생 ${classNumber}`,
+        classNumber
+      };
+    });
+
+    const ordered = getClassEntryPickerStudents(students);
+    const filteredByNumber = getClassEntryPickerStudents(students, '학생 7');
+    const filteredByName = getClassEntryPickerStudents(students, '학생 12');
+
+    expect(ordered).toHaveLength(30);
+    expect(ordered.slice(0, 3).map((student) => student.classNumber)).toEqual(['1', '2', '3']);
+    expect(filteredByNumber.map((student) => student.classNumber)).toEqual(['7']);
+    expect(filteredByName).toMatchObject([{ displayName: '학생 12', classNumber: '12' }]);
+  });
+
+  it('removes only explicit legacy seeded teacher logs from previous browser state', () => {
+    const realLog = createAiSuggestionTeacherLog({
+      id: 'teacher-log-real',
+      sessionId: 'session-real',
+      studentId: 'student-real',
+      studentName: '김민준 학생'
+    });
+    const restored = mergePersistedStateForInitialLoad({
+      ...initialState,
+      teacherLogs: [
+        createAiSuggestionTeacherLog({
+          id: 'log-demo-legacy',
+          sessionId: 'demo-session-barista-prep',
+          studentId: 'demo-student-hong',
+          studentName: '홍길동 학생'
+        }),
+        createAiSuggestionTeacherLog({
+          id: 'aac-local-real',
+          sessionId: 'local-session-local-student-1',
+          studentId: 'local-student-1',
+          studentName: '홍길동'
+        }),
+        realLog
+      ]
+    });
+
+    expect(initialState.teacherLogs).toEqual([]);
+    expect(restored.teacherLogs.map((log) => log.id)).toEqual(['aac-local-real', 'teacher-log-real']);
+  });
+
+  it('keeps local student exploration records while removing explicit legacy seed records', () => {
+    const job = getJob('barista-aide');
+    const localRecord = createRecord(
+      {
+        ...initialState,
+        selectedJobId: 'barista-aide',
+        selectedSceneId: 'prep',
+        studentSession: {
+          mode: 'demo',
+          startedAt: '2026-06-23T13:20:00.000Z',
+          classId: 'local-1',
+          studentId: 'local-student-1',
+          displayName: '홍길동',
+          classNumber: '1'
+        }
+      },
+      job
+    );
+    const legacyRecord: ExplorationRecord = {
+      ...localRecord,
+      id: 'record-demo-legacy',
+      studentName: '홍길동 학생'
+    };
+    const realRecord: ExplorationRecord = {
+      ...localRecord,
+      id: 'record-real',
+      studentName: '김민준 학생',
+      logs: [
+        createAiSuggestionTeacherLog({
+          id: 'teacher-log-real-record',
+          sessionId: 'session-real-record',
+          studentId: 'student-real-record',
+          studentName: '김민준 학생'
+        })
+      ]
+    };
+    const restored = mergePersistedStateForInitialLoad({
+      ...initialState,
+      records: [legacyRecord, localRecord, realRecord]
+    });
+
+    expect(restored.records.map((record) => record.id).sort()).toEqual([localRecord.id, 'record-real'].sort());
+    expect(restored.records.find((record) => record.id === localRecord.id)?.studentName).toBe('홍길동');
   });
 
   it('starts at landing even when an old student entry link is present', () => {
@@ -375,6 +571,93 @@ describe('student exploration copy and records', () => {
     expect(hasBannedCopy(`${summary.summaryForTeacher} ${summary.sceneEvidence[0]?.summary ?? ''}`)).toBe(false);
   });
 
+  it('uses the selected local class-entry student in teacher logs and learning records', () => {
+    const job = getJob('barista-aide');
+    const scene = job.scenes[0];
+    const option = scene.aacOptions?.[0];
+    if (!option) throw new Error('Expected a first AAC option for the barista prep scene.');
+    const state: AppState = {
+      ...initialState,
+      selectedJobId: job.id,
+      selectedSceneId: scene.id,
+      studentSession: {
+        mode: 'demo',
+        startedAt: '2026-06-23T13:20:00.000Z',
+        classId: 'local-1',
+        studentId: 'local-student-1',
+        displayName: '홍길동',
+        classNumber: '1'
+      },
+      teacherEvidenceTarget: {
+        studentId: 'local-student-1',
+        sessionId: 'local-session-local-student-1'
+      }
+    };
+    const log = mockCoachGateway.createAacLog(option, state, job);
+    if (!log) throw new Error('Expected an AAC teacher log for local class-entry student.');
+    const record = createRecord({ ...state, teacherLogs: [log] }, job);
+    const restored = mergePersistedStateForInitialLoad({
+      ...initialState,
+      teacherLogs: [log],
+      records: [record]
+    });
+
+    expect(log).toMatchObject({
+      studentName: '홍길동',
+      studentId: 'local-student-1',
+      sessionId: 'local-session-local-student-1'
+    });
+    expect(record).toMatchObject({
+      studentName: '홍길동',
+      logs: [expect.objectContaining({ studentName: '홍길동' })]
+    });
+    expect(restored.teacherLogs).toHaveLength(1);
+    expect(restored.records).toHaveLength(1);
+    expect(restored.teacherLogs[0]?.studentName).toBe('홍길동');
+    expect(restored.records[0]?.studentName).toBe('홍길동');
+  });
+
+  it('groups multiple same-session student choices into one teacher learning card', () => {
+    const firstChoice = createAiSuggestionTeacherLog({
+      id: 'teacher-log-cup',
+      createdAt: '2026-06-23T04:01:00.000Z',
+      sessionId: 'local-session-hong',
+      studentId: 'local-student-hong',
+      studentName: '홍길동',
+      jobId: 'barista-aide',
+      jobTitle: '바리스타',
+      stageLabel: '1 준비 장면',
+      summary: '홍길동 학생이 "컵이 보여요"라고 선택했습니다.',
+      studentExpression: '컵이 보여요',
+      responseMode: 'aac'
+    });
+    const secondChoice = createAiSuggestionTeacherLog({
+      id: 'teacher-log-tool',
+      createdAt: '2026-06-23T04:02:00.000Z',
+      sessionId: 'local-session-hong',
+      studentId: 'local-student-hong',
+      studentName: '홍길동',
+      jobId: 'barista-aide',
+      jobTitle: '바리스타',
+      stageLabel: '1 준비 장면',
+      summary: '홍길동 학생이 "도구가 보여요"라고 선택했습니다.',
+      studentExpression: '도구가 보여요',
+      responseMode: 'aac'
+    });
+
+    const cards = buildTeacherLearningCards([], [firstChoice, secondChoice]);
+
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      studentName: '홍길동',
+      jobTitle: '바리스타',
+      memorableScene: '준비 장면',
+      studentThought: '도구가 보여요',
+      status: '확인 대기'
+    });
+    expect(cards[0]?.logs.map((log) => log.id)).toEqual(['teacher-log-tool', 'teacher-log-cup']);
+  });
+
   it('renders concrete next-instruction guidance for teacher action', () => {
     const job = getJob('baker-aide');
     const log = mockCoachGateway.createSupportLog('visual', { ...initialState, selectedJobId: job.id, selectedSceneId: 'tools' }, job);
@@ -591,6 +874,11 @@ describe('student exploration copy and records', () => {
         }), { status: 200 });
       }
       if (url === '/api/classes') {
+        if (init?.method === 'POST') {
+          return new Response(JSON.stringify({
+            class: { id: 'class-2', name: '3학년 2반', gradeLabel: null, schoolYear: 2026, active: true }
+          }), { status: 201 });
+        }
         return new Response(JSON.stringify({
           classes: [{ id: 'class-1', name: '1반', gradeLabel: '고1', schoolYear: 2026, active: true }]
         }), { status: 200 });
@@ -643,6 +931,10 @@ describe('student exploration copy and records', () => {
 
     await expect(fetchTeacherMe()).resolves.toMatchObject({ id: 'teacher-1', role: 'teacher' });
     await expect(fetchTeacherClasses()).resolves.toHaveLength(1);
+    await expect(createTeacherClass({ name: '3학년 2반', schoolYear: 2026 })).resolves.toMatchObject({
+      id: 'class-2',
+      name: '3학년 2반'
+    });
     await expect(fetchClassStudents('class-1')).resolves.toHaveLength(1);
     await expect(createRosterStudent('class-1', {
       studentCode: 'S002',
@@ -672,16 +964,19 @@ describe('student exploration copy and records', () => {
     });
 
     const createCall = fetchCalls.find(([url, init]) => String(url) === '/api/classes/class-1/students' && init?.method === 'POST');
+    const createClassCall = fetchCalls.find(([url, init]) => String(url) === '/api/classes' && init?.method === 'POST');
     const updateCall = fetchCalls.find(([url, init]) => String(url) === '/api/students/student-2' && init?.method === 'PATCH');
     const launchCall = fetchCalls.find(([url, init]) => String(url) === '/api/students/student-2/launch-code' && init?.method === 'POST');
     const entryStartCall = fetchCalls.find(([url, init]) => String(url) === '/api/classes/class-1/entry-session' && init?.method === 'POST');
     const classEntryStudentCall = fetchCalls.find(([url, init]) => String(url) === '/api/class-entry/entry-token-1/students/student-1/start' && init?.method === 'POST');
 
     expect(createCall).toBeDefined();
+    expect(createClassCall).toBeDefined();
     expect(updateCall).toBeDefined();
     expect(launchCall).toBeDefined();
     expect(entryStartCall).toBeDefined();
     expect(classEntryStudentCall).toBeDefined();
+    expect(JSON.parse(String(createClassCall?.[1]?.body))).toMatchObject({ name: '3학년 2반', schoolYear: 2026 });
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ studentCode: 'S002', displayName: '새 학생', classNumber: '2' });
     expect(JSON.parse(String(updateCall?.[1]?.body))).toMatchObject({ active: false });
   });
@@ -689,7 +984,7 @@ describe('student exploration copy and records', () => {
   it('maps duplicate code, unauthorized, inactive class, and network roster failures to recoverable teacher copy', async () => {
     globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'duplicate_student_code' }), { status: 409 })) as typeof fetch;
     await createRosterStudent('class-1', { studentCode: 'S001', displayName: '중복 학생', classNumber: '1' }).catch((error) => {
-      expect(getRosterErrorMessage(error)).toContain('이미 사용하는 학생 코드');
+      expect(getRosterErrorMessage(error)).toContain('이름과 번호');
     });
 
     globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'roster_write_denied' }), { status: 403 })) as typeof fetch;

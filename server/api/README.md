@@ -59,8 +59,8 @@ The smoke test starts a temporary PostgreSQL cluster, runs all migrations, runs 
 - Health: `GET /api/health`
 - Teacher auth: `POST /api/auth/teacher/login` with `schoolCode`, `loginId`, and `password` or `pin`; `POST /api/auth/logout`; `GET /api/auth/me`
 - Class/student lookup: `GET /api/classes`, `GET /api/classes/:id/students`, `POST /api/student/resolve`
-- Roster management: admins can manage all school rosters; assigned active `lead_teacher`/`teacher` memberships can `POST /api/classes/:id/students`, `PATCH /api/students/:id`, and `POST /api/students/:id/launch-code` only for their class; `support_staff` remains read-only
-- Admin-only class management: `POST/PATCH /api/classes`
+- Roster management: admins can manage all school rosters; assigned active `lead_teacher`/`teacher` memberships can create classes for their school, `POST /api/classes/:id/students`, `PATCH /api/students/:id`, and `POST /api/students/:id/launch-code`; `support_staff` remains read-only
+- Admin-only class update: `PATCH /api/classes/:id`
 - Admin teacher account management: `GET/POST/PATCH /api/teacher/accounts`
 - Content: `GET /api/jobs?includeScenes=true`
 - Exploration: session create, events, responses, records, complete

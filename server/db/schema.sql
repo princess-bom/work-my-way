@@ -529,7 +529,7 @@ create trigger teacher_ai_policy_settings_set_updated_at
 before update on teacher_ai_policy_settings
 for each row execute function set_updated_at();
 
-create view dashboard_mastery_progress as
+create view dashboard_mastery_progress with (security_invoker = true) as
 select
   s.id as school_id,
   st.class_id,
@@ -558,7 +558,7 @@ join mastery_criteria_sets mcs on mcs.id = sms.criteria_set_id
 join jobs j on j.id = mcs.job_id
 join job_learning_units lu on lu.id = sms.learning_unit_id;
 
-create view dashboard_teacher_ai_assistance as
+create view dashboard_teacher_ai_assistance with (security_invoker = true) as
 select
   r.school_id,
   r.class_id,
@@ -577,7 +577,7 @@ from teacher_ai_assistance_requests r
 left join teacher_ai_assistance_suggestions sug on sug.request_id = r.id
 left join teacher_ai_assistance_decisions dec on dec.suggestion_id = sug.id;
 
-create view dashboard_session_activity as
+create view dashboard_session_activity with (security_invoker = true) as
 select
   es.school_id,
   es.class_id,

@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closePool, getPool, type Queryable } from './client';
+import { closePool, getPool, type Queryable } from './client.ts';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 export const migrationsDir = path.join(currentDir, 'migrations');

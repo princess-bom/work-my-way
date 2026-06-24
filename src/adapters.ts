@@ -31,6 +31,12 @@ export type TeacherClassSummary = {
   active?: boolean;
 };
 
+export type TeacherClassInput = {
+  name: string;
+  gradeLabel?: string | null;
+  schoolYear: number;
+};
+
 export type TeacherRosterStudent = {
   id: string;
   classId: string;
@@ -61,6 +67,7 @@ export type TeacherLaunchCodeResult = {
 export type ClassEntryStudent = {
   id: string;
   classId: string;
+  studentCode?: string;
   displayName: string;
   classNumber?: string | null;
 };
@@ -184,7 +191,7 @@ export function canManageRoster(role?: TeacherRole | null) {
 export function getRosterErrorMessage(error: unknown) {
   if (error instanceof ApiClientError) {
     if (error.status === 409 || error.code === 'duplicate_student_code') {
-      return '이미 사용하는 학생 코드입니다. 다른 코드로 다시 저장해 주세요.';
+      return '이미 등록된 학생 정보와 겹칩니다. 이름과 번호를 확인한 뒤 다시 저장해 주세요.';
     }
     if (error.status === 403) {
       return '이 반의 학생 정보를 변경할 권한이 없습니다.';
@@ -317,6 +324,14 @@ export async function fetchTeacherClasses(): Promise<TeacherClassSummary[]> {
   return payload.classes;
 }
 
+export async function createTeacherClass(input: TeacherClassInput): Promise<TeacherClassSummary> {
+  const payload = await apiRequest<{ class: TeacherClassSummary }>('/api/classes', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+  return payload.class;
+}
+
 export async function fetchClassStudents(classId: string): Promise<TeacherRosterStudent[]> {
   const payload = await apiRequest<{ students: TeacherRosterStudent[] }>(`/api/classes/${encodeURIComponent(classId)}/students`);
   return payload.students;
@@ -378,6 +393,30 @@ function getScene(state: AppState, job: JobProfile) {
   return job.scenes.find((item) => item.id === state.selectedSceneId) ?? job.scenes[state.currentSceneIndex] ?? job.scenes[0];
 }
 
+function getStudentNameForTeacherRecord(state: AppState) {
+  if (state.studentSession?.mode === 'demo' && state.studentSession.displayName?.trim()) {
+    return state.studentSession.displayName.trim();
+  }
+  return '홍길동 학생';
+}
+
+function getStudentIdForTeacherRecord(state: AppState) {
+  if (state.studentSession?.mode === 'api') return state.studentSession.studentId;
+  if (state.studentSession?.mode === 'demo' && state.studentSession.studentId?.trim()) {
+    return state.studentSession.studentId.trim();
+  }
+  return 'demo-student-hong';
+}
+
+function getSessionIdForTeacherRecord(state: AppState, job: JobProfile, sceneId: string) {
+  if (state.teacherEvidenceTarget?.sessionId) return state.teacherEvidenceTarget.sessionId;
+  if (state.studentSession?.mode === 'api' && state.studentSession.sessionId) return state.studentSession.sessionId;
+  if (state.studentSession?.mode === 'demo' && state.studentSession.studentId?.trim()) {
+    return `local-session-${state.studentSession.studentId.trim()}`;
+  }
+  return `local-session-${job.id}-${sceneId}`;
+}
+
 function buildTeacherEvidenceFields({
   state,
   job,
@@ -415,8 +454,8 @@ function buildTeacherEvidenceFields({
   const masteryReviewTarget = teacherEvidenceTarget?.masteryReviewTarget;
 
   return {
-    sessionId: teacherEvidenceTarget?.sessionId ?? `local-session-${job.id}-${scene.id}`,
-    studentId: masteryReviewTarget?.studentId ?? teacherEvidenceTarget?.studentId ?? 'demo-student-hong',
+    sessionId: getSessionIdForTeacherRecord(state, job, scene.id),
+    studentId: masteryReviewTarget?.studentId ?? teacherEvidenceTarget?.studentId ?? getStudentIdForTeacherRecord(state),
     jobId: job.id,
     sceneId: scene.id,
     responseMode,
@@ -515,7 +554,7 @@ export const mockCoachGateway: CoachGateway = {
     return {
       id: nowId('log'),
       createdAt: new Date().toISOString(),
-      studentName: '홍길동 학생',
+      studentName: getStudentNameForTeacherRecord(state),
       jobTitle: job.title,
       stageLabel: state.currentSceneIndex >= 0 ? job.scenes[state.currentSceneIndex]?.label ?? '탐색 중' : '탐색 중',
       signal,
@@ -541,7 +580,7 @@ export const mockCoachGateway: CoachGateway = {
     return {
       id: nowId('aac'),
       createdAt: new Date().toISOString(),
-      studentName: '홍길동 학생',
+      studentName: getStudentNameForTeacherRecord(state),
       jobTitle: job.title,
       stageLabel: scene.label,
       signal: isSupportChoice ? '모름/불확실' : '직업 이해',
@@ -564,7 +603,7 @@ export function createRecord(state: AppState, job: JobProfile): ExplorationRecor
   return {
     id: nowId('record'),
     createdAt: new Date().toISOString(),
-    studentName: '홍길동 학생',
+    studentName: getStudentNameForTeacherRecord(state),
     jobId: job.id,
     jobTitle: job.title,
     memorableScene: scene.label.replace(/^\d+\s*/, ''),

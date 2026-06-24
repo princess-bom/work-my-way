@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { getPool, withTransaction, type Queryable } from '../db/client';
+import { getPool, withTransaction, type Queryable } from '../db/client.js';
 import {
   clearSessionCookie,
   createSessionToken,
@@ -14,8 +14,8 @@ import {
   teacherSessionCookieName,
   verifySecret,
   verifyStudentToken
-} from './security';
-import { canIncludeRawText, deriveMasteryStatus, policyColumnForRequest, sanitizeTeacherAiContext, suggestionTypeForRequest } from './policies';
+} from './security.js';
+import { canIncludeRawText, deriveMasteryStatus, policyColumnForRequest, sanitizeTeacherAiContext, suggestionTypeForRequest } from './policies.js';
 
 type TeacherContext = {
   id: string;
@@ -65,11 +65,13 @@ type ApiRequest = Request & {
 };
 
 class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string
-  ) {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string) {
     super(code);
+    this.status = status;
+    this.code = code;
   }
 }
 
@@ -652,6 +654,10 @@ async function requireAdmin(teacher: TeacherContext) {
   if (teacher.role !== 'admin') throw new ApiError(403, 'admin_required');
 }
 
+function canManageRosterRole(role: TeacherContext['role']) {
+  return role === 'admin' || role === 'teacher';
+}
+
 function settingTable(kind: 'ai' | 'voice') {
   return kind === 'ai' ? 'ai_provider_settings' : 'voice_provider_settings';
 }
@@ -784,7 +790,7 @@ export function createApiApp(db: Queryable = getPool()) {
     '/api/classes',
     asyncRoute(async (req, res) => {
       const teacher = await requireTeacher(req, db);
-      await requireAdmin(teacher);
+      if (!canManageRosterRole(teacher.role)) throw new ApiError(403, 'roster_write_denied');
       const body = bodyRecord(req);
       const schoolYear = Number(body.schoolYear);
       if (!Number.isInteger(schoolYear)) throw new ApiError(400, 'invalid_schoolYear');
@@ -796,6 +802,17 @@ export function createApiApp(db: Queryable = getPool()) {
         `,
         [teacher.schoolId, requiredString(body, 'name', 120), optionalString(body, 'gradeLabel', 80), schoolYear]
       );
+      if (teacher.role !== 'admin') {
+        await db.query(
+          `
+            insert into class_teacher_memberships(class_id, teacher_id, membership_role, active)
+            values ($1, $2, 'teacher', true)
+            on conflict (class_id, teacher_id)
+            do update set membership_role = 'teacher', active = true
+          `,
+          [result.rows[0].id, teacher.id]
+        );
+      }
       await audit(db, teacher, 'class_created', 'class', String(result.rows[0].id), {
         name: result.rows[0].name,
         schoolYear: result.rows[0].school_year

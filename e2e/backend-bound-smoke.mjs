@@ -296,9 +296,7 @@ async function fetchSeedContext(db) {
 
 async function createStudentThroughUi(page, seed) {
   const unique = randomBytes(3).toString('hex').toUpperCase();
-  const studentCode = `T13${unique}`;
   const displayName = `Todo13 학생 ${unique}`;
-  rememberSecret('createdStudentCode', studentCode);
 
   await page.goto('/');
   await page.getByRole('button', { name: /교사용으로 보기/ }).first().click();
@@ -307,9 +305,9 @@ async function createStudentThroughUi(page, seed) {
   await screenshot(page, 'teacher-student-management-before-create.png');
 
   const createForm = page.locator('.student-create-form');
-  await createForm.locator('input').nth(0).fill(studentCode);
-  await createForm.locator('input').nth(1).fill(displayName);
-  await createForm.locator('input').nth(2).fill('13');
+  assert(await createForm.locator('label > span', { hasText: /^학생 코드$/ }).count() === 0, 'teacher create form still exposes student code');
+  await createForm.getByLabel('이름').fill(displayName);
+  await createForm.getByLabel('번호').fill('13');
   await Promise.all([
     page.waitForResponse((response) => response.url().includes('/api/classes/') && response.url().includes('/students') && response.request().method() === 'POST'),
     createForm.getByRole('button', { name: /학생 등록/ }).click()
@@ -319,35 +317,35 @@ async function createStudentThroughUi(page, seed) {
   const students = await browserJson(page, 'fetch-created-student', `/api/classes/${seed.class_id}/students`);
   const created = students.body.students.find((student) => student.displayName === displayName);
   assert(created?.id, 'created student was not returned by real roster API');
+  assert(created.studentCode?.startsWith('AUTO-'), 'created student did not receive an internal auto code');
+  rememberSecret('createdStudentCode', created.studentCode);
 
   const row = page.locator('.student-roster-row').filter({ hasText: displayName }).first();
-  await row.locator('input').nth(2).fill('14');
+  assert(await row.locator('.student-roster-fields label > span', { hasText: /^코드$/ }).count() === 0, 'teacher roster row still exposes student code');
+  await row.locator('input').nth(1).fill('14');
   await Promise.all([
     page.waitForResponse((response) => response.url().includes(`/api/students/${created.id}`) && response.request().method() === 'PATCH'),
     row.getByRole('button', { name: '저장' }).click()
   ]);
   await page.getByText(/정보를 저장했습니다/).waitFor();
 
-  await Promise.all([
-    page.waitForResponse((response) => response.url().includes(`/api/students/${created.id}/launch-code`) && response.request().method() === 'POST'),
-    row.getByRole('button', { name: '코드 생성' }).click()
-  ]);
-  await page.locator('.student-launch-code-panel').waitFor();
-  const launchCode = (await page.locator('.student-launch-code-panel strong').textContent())?.trim();
-  assert(launchCode && /^[A-Z0-9]{10}$/.test(launchCode), 'teacher launch code was not generated');
-  rememberSecret('launchCode', launchCode);
-  await page.getByRole('button', { name: '입장 코드 닫기' }).click();
-  await page.locator('.student-launch-code-panel').waitFor({ state: 'detached' });
-  await screenshot(page, 'teacher-student-management-after-code-dismissed.png');
+  await screenshot(page, 'teacher-student-management-after-create-edit.png');
 
-  summary.browserChecks.push({ name: 'teacher creates/edits student and generates launch code through real API', status: 'PASS' });
-  return { ...created, launchCode, studentCode, displayName };
+  summary.browserChecks.push({ name: 'teacher creates/edits student without exposing student code', status: 'PASS' });
+  return { ...created, displayName };
 }
 
 async function runStudentFlow(page, db, createdStudent, seed) {
   await page.getByRole('button', { name: '학생 기록' }).click();
   await page.getByRole('button', { name: '학생 화면으로' }).click();
-  await page.locator('.student-launch-screen').waitFor();
+  await page.getByRole('button', { name: /체험 시작하기/ }).first().click();
+  const studentEntrySurface = await Promise.race([
+    page.locator('.intro-screen').waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'intro'),
+    page.locator('.class-entry-modal').waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'class-entry')
+  ]);
+  if (studentEntrySurface === 'intro') {
+    await screenshot(page, 'student-intro-before-name-selection.png');
+  }
 
   const badResolve = await browserJson(page, 'invalid-launch-code-denied', '/api/student/resolve', {
     method: 'POST',
@@ -357,27 +355,20 @@ async function runStudentFlow(page, db, createdStudent, seed) {
   assert(badResolve.status === 401, `invalid launch code expected 401, got ${badResolve.status}`);
   summary.browserChecks.push({ name: 'invalid launch code denied', status: 'PASS', httpStatus: badResolve.status });
 
-  const launchInputs = page.locator('.student-launch-form input');
-  await launchInputs.nth(0).fill(seed.class_id);
-  await launchInputs.nth(1).fill(createdStudent.studentCode);
-  await launchInputs.nth(2).fill(createdStudent.launchCode);
+  if (studentEntrySurface === 'intro') {
+    await page.getByRole('button', { name: /하루 체험하기/ }).click();
+    await page.locator('.class-entry-modal').waitFor();
+  }
+  await screenshot(page, 'student-name-selection-modal.png');
   await Promise.all([
+    page.waitForResponse((response) => response.url().includes(`/api/students/${createdStudent.id}/launch-code`) && response.request().method() === 'POST'),
     page.waitForResponse((response) => response.url().endsWith('/api/student/resolve') && response.request().method() === 'POST'),
-    page.getByRole('button', { name: '입장하기' }).click()
-  ]);
-  await page.locator('.intro-screen').waitFor();
-  await screenshot(page, 'student-intro-after-launch.png');
-
-  let stored = await page.evaluate(() => JSON.parse(localStorage.getItem('kkumideun-findjob-frontend-session-v1') ?? '{}'));
-  rememberSecret('studentToken', stored.studentSession?.studentToken);
-
-  await Promise.all([
     page.waitForResponse((response) => response.url().endsWith('/api/exploration-sessions') && response.request().method() === 'POST'),
-    page.getByRole('button', { name: /하루 체험하기/ }).click()
+    page.getByRole('button', { name: new RegExp(createdStudent.displayName) }).click()
   ]);
   await page.locator('.day-screen').waitFor();
   await screenshot(page, 'student-day-after-real-session-start.png');
-  stored = await page.evaluate(() => JSON.parse(localStorage.getItem('kkumideun-findjob-frontend-session-v1') ?? '{}'));
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('kkumideun-findjob-frontend-session-v1') ?? '{}'));
   const sessionId = stored.studentSession?.sessionId;
   const studentToken = stored.studentSession?.studentToken;
   assert(sessionId && studentToken, 'student session did not persist in browser state');
@@ -529,6 +520,7 @@ async function createAiSuggestionAndDashboardProof(page, seed, createdStudent, s
     localStorage.setItem('kkumideun-findjob-frontend-session-v1', JSON.stringify(state));
   }, injectedTeacherState);
   await page.goto('/');
+  await page.getByRole('button', { name: /교사용으로 보기/ }).first().click();
   await page.locator('.teacher-drawer').waitFor();
   await screenshot(page, 'teacher-drawer-backend-bound-log.png');
 

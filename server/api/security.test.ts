@@ -9,7 +9,7 @@ import {
   teacherSessionCookieName,
   verifySecret,
   verifyStudentToken
-} from './security';
+} from './security.ts';
 
 const originalEnv = {
   NODE_ENV: process.env.NODE_ENV,

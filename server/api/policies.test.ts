@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canIncludeRawText, deriveMasteryStatus, policyColumnForRequest, sanitizeTeacherAiContext, suggestionTypeForRequest } from './policies';
+import { canIncludeRawText, deriveMasteryStatus, policyColumnForRequest, sanitizeTeacherAiContext, suggestionTypeForRequest } from './policies.ts';
 
 describe('api policy helpers', () => {
   it('requires all raw-text gates before AI context can include original student text', () => {

@@ -275,17 +275,26 @@ async function capturePageFourPlus(page, prefix, options = {}) {
   await assertTeacherSidebarLabels(page, `${prefix}-teacher-dashboard`);
   await screenshot(page, `${prefix}-teacher-dashboard.png`, options);
 
-  await page.locator('.review-row').first().click();
-  await page.locator('.teacher-drawer').waitFor();
-  await assertDrawerActions(page, `${prefix}-teacher-drawer`);
-  await screenshot(page, `${prefix}-teacher-drawer.png`, options);
-  await page.locator('.teacher-drawer').evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-  });
-  await screenshot(page, `${prefix}-teacher-drawer-actions.png`, options);
+  const reviewRows = page.locator('.review-row');
+  if (await reviewRows.count()) {
+    await reviewRows.first().click();
+    await page.locator('.teacher-drawer').waitFor();
+    await assertDrawerActions(page, `${prefix}-teacher-drawer`);
+    await screenshot(page, `${prefix}-teacher-drawer.png`, options);
+    await page.locator('.teacher-drawer').evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await screenshot(page, `${prefix}-teacher-drawer-actions.png`, options);
 
-  await clickVisibleButton(page, '근거 채택', `${prefix} teacher decision`);
-  await page.getByText('기록 완료').first().waitFor();
+    await clickVisibleButton(page, '근거 채택', `${prefix} teacher decision`);
+    await page.getByText('기록 완료').first().waitFor();
+  } else {
+    await page.getByText('아직 학생 탐색 기록이 없습니다').waitFor();
+    await screenshot(page, `${prefix}-teacher-drawer.png`, options);
+    await screenshot(page, `${prefix}-teacher-drawer-actions.png`, options);
+    manifest.teacherDashboardEmptyState ??= [];
+    manifest.teacherDashboardEmptyState.push({ prefix, status: 'PASS' });
+  }
 }
 
 async function mockJson(route, value, status = 200) {
@@ -370,11 +379,12 @@ async function installApiMocks(page) {
     }
 
     if (url.pathname === `/api/classes/${e2eClass.id}/students` && method === 'POST') {
+      manifest.studentCreatePayload = JSON.parse(request.postData() || '{}');
       await mockJson(route, {
         student: {
           id: 'student-e2e-new',
           classId: e2eClass.id,
-          studentCode: 'S002',
+          studentCode: manifest.studentCreatePayload.studentCode,
           displayName: '새 학생',
           classNumber: '8',
           active: true
@@ -400,13 +410,20 @@ async function installApiMocks(page) {
   });
 }
 
-async function fillStudentLaunch(page) {
-  const launchInputs = page.locator('.student-launch-form input');
-  await launchInputs.nth(0).fill(e2eClass.id);
-  await launchInputs.nth(1).fill(e2eStudent.studentCode);
-  await launchInputs.nth(2).fill('E2E-1234');
-  await clickVisibleButton(page, '입장하기', 'student launch submit');
-  await page.locator('.intro-screen').waitFor();
+async function chooseClassEntryStudent(page) {
+  await page.locator('.class-entry-modal').waitFor();
+  if (await page.locator('.student-launch-screen').count()) {
+    throw new Error('Student launch still exposes the legacy code-entry screen');
+  }
+
+  const studentButton = page.getByRole('button', { name: new RegExp(e2eStudent.displayName) });
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes(`/api/students/${e2eStudent.id}/launch-code`) && response.request().method() === 'POST'),
+    page.waitForResponse((response) => response.url().includes('/api/student/resolve') && response.request().method() === 'POST'),
+    page.waitForResponse((response) => response.url().includes('/api/exploration-sessions') && response.request().method() === 'POST'),
+    studentButton.click()
+  ]);
+  await page.locator('.day-screen').waitFor();
 }
 
 async function exerciseStudentManagement(page) {
@@ -416,17 +433,27 @@ async function exerciseStudentManagement(page) {
   await page.locator('.student-roster-row').first().waitFor();
   await screenshot(page, '1920-teacher-student-management.png');
 
-  await clickVisibleButton(page, '코드 생성', 'launch code generation');
-  await page.locator('.student-launch-code-panel').waitFor();
-  const launchCodeText = await page.locator('.student-launch-code-panel strong').textContent();
-  if (!launchCodeText?.trim()) {
-    throw new Error('Launch code generation did not display a code');
+  const createForm = page.locator('.student-create-form');
+  if (await createForm.locator('label > span', { hasText: /^학생 코드$/ }).count()) {
+    throw new Error('Teacher student create form exposes student code');
   }
-  await page.getByRole('button', { name: '입장 코드 닫기' }).click();
-  if (await page.locator('.student-launch-code-panel').count()) {
-    throw new Error('Launch code panel remained visible after dismiss');
+  if (await page.locator('.student-roster-fields label > span', { hasText: /^코드$/ }).count()) {
+    throw new Error('Teacher roster edit fields expose student code');
   }
-  await screenshot(page, '1920-teacher-student-management-code-dismissed.png');
+  await createForm.getByPlaceholder('학생 이름').fill('새 학생');
+  await createForm.getByPlaceholder('생략 가능').fill('8');
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes(`/api/classes/${e2eClass.id}/students`) && response.request().method() === 'POST'),
+    createForm.getByRole('button', { name: /학생 등록/ }).click()
+  ]);
+  await page.getByText('학생을 등록했습니다.').waitFor();
+  if (!manifest.studentCreatePayload?.studentCode?.startsWith('AUTO-')) {
+    throw new Error(`Teacher student create did not send an internal auto code: ${JSON.stringify(manifest.studentCreatePayload)}`);
+  }
+  if (manifest.studentCreatePayload.displayName !== '새 학생' || manifest.studentCreatePayload.classNumber !== '8') {
+    throw new Error(`Teacher student create sent the wrong visible fields: ${JSON.stringify(manifest.studentCreatePayload)}`);
+  }
+  await screenshot(page, '1920-teacher-student-management-created.png');
 
   await clickVisibleButton(page, '학생 기록', 'teacher records nav');
   await page.locator('.teacher-record-list').waitFor();
@@ -447,13 +474,14 @@ async function runDesktopFlow(page) {
   await screenshot(page, '1920-landing-slide-2.png');
 
   await clickVisibleButton(page, /체험 시작하기/, 'start exploration');
-  await page.locator('.student-launch-screen').waitFor();
+  await page.locator('.intro-screen').waitFor();
   await screenshot(page, '1920-launch.png');
-  await fillStudentLaunch(page);
   await screenshot(page, '1920-intro.png');
 
   await clickVisibleButton(page, /하루 체험하기/, 'start day');
-  await page.locator('.day-screen').waitFor();
+  await page.locator('.class-entry-modal').waitFor();
+  await screenshot(page, '1920-class-entry.png');
+  await chooseClassEntryStudent(page);
   await screenshot(page, '1920-session.png');
   await page.getByRole('button', { name: /직업 소개로 돌아가기/ }).waitFor();
   if (await page.locator('.app.view-day .teacher-mini-button').count()) {
@@ -516,11 +544,11 @@ async function runResponsiveFlow(page, width, height, prefix) {
   await page.reload();
   await screenshot(page, `${prefix}.png`, { fullPage: true });
   await clickVisibleButton(page, /체험 시작하기/, `${prefix} start exploration`);
-  await page.locator('.student-launch-screen').waitFor();
-  await fillStudentLaunch(page);
+  await page.locator('.intro-screen').waitFor();
   await screenshot(page, `${prefix}-intro.png`, { fullPage: true });
   await clickVisibleButton(page, /하루 체험하기/, `${prefix} start day`);
-  await page.locator('.day-screen').waitFor();
+  await page.locator('.class-entry-modal').waitFor();
+  await chooseClassEntryStudent(page);
   await screenshot(page, `${prefix}-day.png`, { fullPage: true });
   await clickFirstVisible(page.locator('.scene-aac-panel .aac-choice'), `${prefix} AAC choice`);
   await page.locator('.scene-aac-panel .coach-reply').waitFor({ state: 'attached' });

@@ -15,6 +15,7 @@ type AvatarSpeechApiResponse = {
 export type AvatarSpeechRequestContext = {
   sessionId?: string;
   studentToken?: string;
+  allowBrowserFallback?: boolean;
 };
 
 const avatarSpeechTimeoutMs = 24_000;

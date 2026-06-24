@@ -60,11 +60,11 @@ async function run() {
     process.env.SERVER_ENCRYPTION_KEY = 'smoke-encryption-key';
 
     const request = (await import('supertest')).default;
-    const { createApiApp } = await import('./app');
-    const { runMigrations } = await import('../db/migrate');
-    const { seedLocalSchool } = await import('../db/seed');
-    const { closePool, getPool } = await import('../db/client');
-    const { hashSecret } = await import('./security');
+    const { createApiApp } = await import('./app.ts');
+    const { runMigrations } = await import('../db/migrate.ts');
+    const { seedLocalSchool } = await import('../db/seed.ts');
+    const { closePool, getPool } = await import('../db/client.ts');
+    const { hashSecret } = await import('./security.ts');
 
     await runMigrations();
     const seed = await seedLocalSchool();
