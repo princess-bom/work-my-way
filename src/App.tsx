@@ -546,8 +546,7 @@ export function avatarSpeechContext(state: AppState) {
   }
 
   return {
-    sessionId: state.teacherEvidenceTarget?.sessionId,
-    allowBrowserFallback: false
+    allowBrowserFallback: true
   };
 }
 

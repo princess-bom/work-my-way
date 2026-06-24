@@ -72,4 +72,17 @@ describe('avatar speech playback fallback policy', () => {
       expect.any(Error)
     );
   });
+
+  it('uses browser speech directly for explicit local/demo playback with no server session', async () => {
+    const speech = stubSpeechEnvironment();
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await speakText('로컬 데모 안내입니다.', {
+      allowBrowserFallback: true
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(speech.speak).toHaveBeenCalledTimes(1);
+  });
 });

@@ -53,11 +53,20 @@ function allowsBrowserFallback(context?: AvatarSpeechRequestContext) {
   return context?.allowBrowserFallback === true;
 }
 
+function shouldUseBrowserSpeechOnly(context?: AvatarSpeechRequestContext) {
+  return allowsBrowserFallback(context) && !context?.sessionId && !context?.studentToken;
+}
+
 export async function speakText(text: string, context?: AvatarSpeechRequestContext) {
   if (typeof window === 'undefined') return;
   const requestToken = (speechRequestToken += 1);
   releaseActiveSpeechAudio();
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  if (shouldUseBrowserSpeechOnly(context)) {
+    speakTextWithBrowser(text);
+    return;
+  }
 
   try {
     const speech = await requestAvatarSpeech(text, 'alloy', context);

@@ -13,6 +13,7 @@ const originalEnv = {
   OPENAI_TTS_VOICE: process.env.OPENAI_TTS_VOICE,
   OPENAI_TTS_INSTRUCTIONS: process.env.OPENAI_TTS_INSTRUCTIONS
 };
+const dbSessionId = '11111111-1111-4111-8111-111111111111';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -41,7 +42,7 @@ function row<T extends QueryResultRow>(item: QueryResultRow): T {
 
 class AvatarVoiceDb implements Queryable {
   readonly session = {
-    id: 'session-1',
+    id: dbSessionId,
     school_id: 'school-1',
     class_id: 'class-1',
     student_id: 'student-1'
@@ -155,6 +156,45 @@ describe('avatar voice api', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('rejects local/demo session identifiers before database or provider lookup', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const db: Queryable = {
+      async query() {
+        throw new Error('database should not be queried for non-uuid avatar session ids');
+      }
+    };
+    const server = createServer(createAvatarVoiceHandler({ db }));
+
+    const response = await request(server)
+      .post('/api/avatar/speak')
+      .set('x-student-context', 'present-but-not-verified-before-session-id-shape')
+      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy', sessionId: 'local-session-student-1' })
+      .expect(403);
+
+    expect(response.body).toEqual({ error: 'session_access_denied' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps unexpected handler failures as JSON responses for raw middleware hosts', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const db: Queryable = {
+      async query() {
+        throw new Error('database unavailable');
+      }
+    };
+    const server = createServer(createAvatarVoiceHandler({ db }));
+
+    const response = await request(server)
+      .post('/api/avatar/speak')
+      .set('x-student-context', 'present-but-db-will-fail')
+      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy', sessionId: '11111111-1111-4111-8111-111111111111' })
+      .expect(500);
+
+    expect(response.type).toBe('application/json');
+    expect(response.body).toEqual({ error: 'internal_error' });
+    expect(consoleError).toHaveBeenCalledWith(expect.any(Error));
+  });
+
   it('rejects a student token bound to a different session', async () => {
     process.env.SESSION_SECRET = 'avatar-test-session-secret';
     const db = new AvatarVoiceDb();
@@ -165,7 +205,7 @@ describe('avatar voice api', () => {
     const response = await request(server)
       .post('/api/avatar/speak')
       .set('x-student-context', otherSessionToken)
-      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy', sessionId: 'session-1' })
+      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy', sessionId: dbSessionId })
       .expect(403);
 
     expect(response.body).toEqual({ error: 'session_access_denied' });
@@ -184,7 +224,7 @@ describe('avatar voice api', () => {
     const response = await request(server)
       .post('/api/avatar/speak')
       .set('x-student-context', studentToken)
-      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy', sessionId: 'session-1' })
+      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy', sessionId: dbSessionId })
       .expect(200);
 
     expect(response.body).toEqual({ error: 'voice_provider_not_configured_or_disabled' });
@@ -207,7 +247,7 @@ describe('avatar voice api', () => {
     const response = await request(server)
       .post('/api/avatar/speak')
       .set('x-student-context', studentToken)
-      .send({ provider: 'openai', input: '천천히 들어볼게요.', sessionId: 'session-1' })
+      .send({ provider: 'openai', input: '천천히 들어볼게요.', sessionId: dbSessionId })
       .expect(200);
 
     expect(response.body).toEqual({
@@ -243,7 +283,7 @@ describe('avatar voice api', () => {
     await request(server)
       .post('/api/avatar/speak')
       .set('Cookie', sessionCookie(db.teacherSessionToken, new Date(Date.now() + 60_000)))
-      .send({ provider: 'openai', input: '교사 세션으로 들어볼게요.', sessionId: 'session-1' })
+      .send({ provider: 'openai', input: '교사 세션으로 들어볼게요.', sessionId: dbSessionId })
       .expect(200);
 
     expect(db.seenTeacherSessionRefresh).toBe(true);

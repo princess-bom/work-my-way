@@ -38,6 +38,7 @@ const maxInputCharacters = 1_000;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 const rateWindowMs = 60_000;
 const rateMaxRequests = 60;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function json(res: ServerResponse, statusCode: number, body: unknown) {
   res.statusCode = statusCode;
@@ -175,6 +176,10 @@ function readStudentToken(req: IncomingMessage, payload: AvatarVoicePayload) {
   return payload.studentToken;
 }
 
+function isUuid(value: string | undefined) {
+  return Boolean(value && uuidPattern.test(value));
+}
+
 function hasAvatarVoiceCredential(req: IncomingMessage, payload: AvatarVoicePayload) {
   return Boolean(parseCookies(req.headers.cookie).get(teacherSessionCookieName) || readStudentToken(req, payload));
 }
@@ -218,6 +223,7 @@ async function authenticateTeacherForSession(db: Queryable, req: IncomingMessage
 
 async function authenticateAvatarVoiceRequest(req: IncomingMessage, payload: AvatarVoicePayload, db: Queryable) {
   if (!payload.sessionId) return { ok: false as const, status: 401, error: 'session_context_required' };
+  if (!isUuid(payload.sessionId)) return { ok: false as const, status: 403, error: 'session_access_denied' };
   const session = await db.query<{ school_id: string; class_id: string; student_id: string }>(
     'select school_id, class_id, student_id from exploration_sessions where id = $1 limit 1',
     [payload.sessionId]
@@ -300,43 +306,48 @@ export function createAvatarVoiceHandler(options: AvatarVoiceHandlerOptions = {}
   const resolveGate = options.resolveVoiceProviderGate ?? ((schoolId: string, payload: AvatarVoicePayload) => resolveVoiceProviderGate(schoolId, payload, getDb()));
 
   return async function avatarVoiceHandler(req: IncomingMessage, res: ServerResponse) {
-    if (req.method !== 'POST') {
-      json(res, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    try {
+      if (req.method !== 'POST') {
+        json(res, 405, { error: 'method_not_allowed' });
+        return;
+      }
 
-    if (!sameOriginAllows(req)) {
-      json(res, 403, { error: 'origin_not_allowed' });
-      return;
-    }
+      if (!sameOriginAllows(req)) {
+        json(res, 403, { error: 'origin_not_allowed' });
+        return;
+      }
 
-    if (!rateLimitAllows(req)) {
-      json(res, 429, { error: 'rate_limited' });
-      return;
-    }
+      if (!rateLimitAllows(req)) {
+        json(res, 429, { error: 'rate_limited' });
+        return;
+      }
 
-    const parsed = await readJson(req);
-    if (!parsed.ok) {
-      json(res, parsed.status, { error: parsed.error });
-      return;
-    }
+      const parsed = await readJson(req);
+      if (!parsed.ok) {
+        json(res, parsed.status, { error: parsed.error });
+        return;
+      }
 
-    if (!parsed.payload.sessionId) {
-      json(res, 401, { error: 'session_context_required' });
-      return;
-    }
-    if (!hasAvatarVoiceCredential(req, parsed.payload)) {
-      json(res, 401, { error: 'session_access_required' });
-      return;
-    }
+      if (!parsed.payload.sessionId) {
+        json(res, 401, { error: 'session_context_required' });
+        return;
+      }
+      if (!hasAvatarVoiceCredential(req, parsed.payload)) {
+        json(res, 401, { error: 'session_access_required' });
+        return;
+      }
 
-    const auth = await authenticateAvatarVoiceRequest(req, parsed.payload, getDb());
-    if (!auth.ok) {
-      json(res, auth.status, { error: auth.error });
-      return;
-    }
+      const auth = await authenticateAvatarVoiceRequest(req, parsed.payload, getDb());
+      if (!auth.ok) {
+        json(res, auth.status, { error: auth.error });
+        return;
+      }
 
-    await speakWithOpenAI(parsed.payload, res, auth.schoolId, resolveGate);
+      await speakWithOpenAI(parsed.payload, res, auth.schoolId, resolveGate);
+    } catch (error) {
+      console.error(error);
+      json(res, 500, { error: 'internal_error' });
+    }
   };
 }
 

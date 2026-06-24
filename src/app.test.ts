@@ -114,7 +114,7 @@ describe('student exploration copy and records', () => {
     expect(restored.replaying).toBe(false);
   });
 
-  it('does not allow browser TTS fallback for demo/local avatar speech', () => {
+  it('allows browser TTS fallback without sending local/demo session ids to the voice API', () => {
     const context = avatarSpeechContext({
       ...initialState,
       studentSession: {
@@ -131,8 +131,7 @@ describe('student exploration copy and records', () => {
     });
 
     expect(context).toEqual({
-      sessionId: 'local-session-local-student-1',
-      allowBrowserFallback: false
+      allowBrowserFallback: true
     });
   });
 
