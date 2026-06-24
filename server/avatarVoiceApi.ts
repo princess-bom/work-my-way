@@ -136,8 +136,8 @@ async function readSdpOffer(req: IncomingMessage): Promise<{ ok: true; sdp: stri
     chunks.push(buffer);
   }
 
-  const sdp = Buffer.concat(chunks).toString('utf8').trim();
-  if (!sdp) return { ok: false, status: 400, error: 'invalid_sdp' };
+  const sdp = Buffer.concat(chunks).toString('utf8');
+  if (!sdp.trim()) return { ok: false, status: 400, error: 'invalid_sdp' };
   return { ok: true, sdp };
 }
 

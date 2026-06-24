@@ -317,7 +317,7 @@ describe('avatar voice api', () => {
       .set('content-type', 'application/sdp')
       .set('x-avatar-session-id', dbSessionId)
       .set('x-student-context', studentToken)
-      .send('offer-sdp')
+      .send('offer-sdp\r\n')
       .expect(200);
 
     expect(response.type).toBe('application/sdp');
@@ -330,7 +330,7 @@ describe('avatar voice api', () => {
       'OpenAI-Safety-Identifier': expect.any(String)
     });
     const form = init?.body as FormData;
-    expect(form.get('sdp')).toBe('offer-sdp');
+    expect(form.get('sdp')).toBe('offer-sdp\r\n');
     const session = JSON.parse(String(form.get('session')));
     expect(session).toMatchObject({
       type: 'realtime',
