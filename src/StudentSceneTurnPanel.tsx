@@ -21,10 +21,15 @@ export function DayExperience({
   coachReply,
   sceneTurnCount,
   replaying,
+  realtimeAvailable,
+  realtimeActive,
+  realtimePending,
+  realtimeMessage,
   resting,
   onScene,
   onAacOption,
   onSupport,
+  onRealtimeToggle,
   onBack,
   onNext
 }: {
@@ -35,10 +40,15 @@ export function DayExperience({
   coachReply: string | null;
   sceneTurnCount: number;
   replaying: boolean;
+  realtimeAvailable?: boolean;
+  realtimeActive?: boolean;
+  realtimePending?: boolean;
+  realtimeMessage?: string | null;
   resting: boolean;
   onScene: (index: number, id: string) => void;
   onAacOption: (option: AacOption) => void;
   onSupport: (action: SupportActionId) => void;
+  onRealtimeToggle?: () => void;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -142,8 +152,17 @@ export function DayExperience({
             />
             <SupportActionBar
               replaying={replaying}
+              realtimeAvailable={realtimeAvailable}
+              realtimeActive={realtimeActive}
+              realtimePending={realtimePending}
+              onRealtimeToggle={onRealtimeToggle}
               onSupport={chooseSupportAction}
             />
+            {realtimeMessage && (
+              <p className="avatar-realtime-status" role="status">
+                {realtimeMessage}
+              </p>
+            )}
             <button className="primary-cta compact day-next-mobile" type="button" onClick={onNext}>
               정리하기
               <ChevronRight size={18} />

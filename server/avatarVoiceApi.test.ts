@@ -1,7 +1,13 @@
 import { createServer } from 'node:http';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { avatarVoiceHandler, buildOpenAISpeechRequestBody, createAvatarVoiceHandler, normalizeAvatarVoicePayload } from './avatarVoiceApi.ts';
+import {
+  avatarVoiceHandler,
+  buildOpenAISpeechRequestBody,
+  createAvatarRealtimeSessionHandler,
+  createAvatarVoiceHandler,
+  normalizeAvatarVoicePayload
+} from './avatarVoiceApi.ts';
 import type { Queryable } from './db/client.ts';
 import type { QueryResult, QueryResultRow } from 'pg';
 import { createSessionToken, encryptSecret, hashToken, sessionCookie, signStudentToken } from './api/security.ts';
@@ -11,7 +17,10 @@ const originalEnv = {
   SERVER_ENCRYPTION_KEY: process.env.SERVER_ENCRYPTION_KEY,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_TTS_VOICE: process.env.OPENAI_TTS_VOICE,
-  OPENAI_TTS_INSTRUCTIONS: process.env.OPENAI_TTS_INSTRUCTIONS
+  OPENAI_TTS_INSTRUCTIONS: process.env.OPENAI_TTS_INSTRUCTIONS,
+  OPENAI_REALTIME_MODEL: process.env.OPENAI_REALTIME_MODEL,
+  OPENAI_REALTIME_VOICE: process.env.OPENAI_REALTIME_VOICE,
+  OPENAI_REALTIME_INSTRUCTIONS: process.env.OPENAI_REALTIME_INSTRUCTIONS
 };
 const dbSessionId = '11111111-1111-4111-8111-111111111111';
 
@@ -288,5 +297,69 @@ describe('avatar voice api', () => {
 
     expect(db.seenTeacherSessionRefresh).toBe(true);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates an OpenAI realtime SDP answer using the decrypted school provider key', async () => {
+    process.env.SESSION_SECRET = 'avatar-test-session-secret';
+    process.env.SERVER_ENCRYPTION_KEY = 'avatar-test-encryption-secret';
+    const db = new AvatarVoiceDb();
+    const studentToken = signStudentToken({ schoolId: 'school-1', classId: 'class-1', studentId: 'student-1' });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('answer-sdp', {
+        status: 200,
+        headers: { 'content-type': 'application/sdp' }
+      })
+    );
+    const server = createServer(createAvatarRealtimeSessionHandler({ db }));
+
+    const response = await request(server)
+      .post('/api/avatar/realtime-session')
+      .set('content-type', 'application/sdp')
+      .set('x-avatar-session-id', dbSessionId)
+      .set('x-student-context', studentToken)
+      .send('offer-sdp')
+      .expect(200);
+
+    expect(response.type).toBe('application/sdp');
+    expect(response.text).toBe('answer-sdp');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/realtime/calls');
+    expect(init?.headers).toMatchObject({ Authorization: 'Bearer decrypted-school-openai-key' });
+    const form = init?.body as FormData;
+    expect(form.get('sdp')).toBe('offer-sdp');
+    const session = JSON.parse(String(form.get('session')));
+    expect(session).toMatchObject({
+      type: 'realtime',
+      model: 'gpt-realtime-2',
+      audio: {
+        output: { voice: 'settings-voice' },
+        input: {
+          turn_detection: { type: 'server_vad' },
+          transcription: { model: 'gpt-4o-mini-transcribe', language: 'ko' }
+        }
+      }
+    });
+  });
+
+  it('rejects local/demo realtime session identifiers before provider lookup', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const db: Queryable = {
+      async query() {
+        throw new Error('database should not be queried for non-uuid realtime session ids');
+      }
+    };
+    const server = createServer(createAvatarRealtimeSessionHandler({ db }));
+
+    const response = await request(server)
+      .post('/api/avatar/realtime-session')
+      .set('content-type', 'application/sdp')
+      .set('x-avatar-session-id', 'local-session-student-1')
+      .set('x-student-context', 'present-but-not-verified-before-session-id-shape')
+      .send('offer-sdp')
+      .expect(403);
+
+    expect(response.body).toEqual({ error: 'session_access_denied' });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

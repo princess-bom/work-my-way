@@ -34,6 +34,7 @@ type AvatarVoiceHandlerOptions = {
 };
 
 const maxBodyBytes = 12_288;
+const maxRealtimeSdpBytes = 65_536;
 const maxInputCharacters = 1_000;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 const rateWindowMs = 60_000;
@@ -124,6 +125,22 @@ async function readJson(req: IncomingMessage): Promise<ParsedRequest> {
   }
 }
 
+async function readSdpOffer(req: IncomingMessage): Promise<{ ok: true; sdp: string } | { ok: false; status: number; error: string }> {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+
+  for await (const chunk of req) {
+    const buffer = Buffer.from(chunk);
+    bytes += buffer.byteLength;
+    if (bytes > maxRealtimeSdpBytes) return { ok: false, status: 413, error: 'request_too_large' };
+    chunks.push(buffer);
+  }
+
+  const sdp = Buffer.concat(chunks).toString('utf8').trim();
+  if (!sdp) return { ok: false, status: 400, error: 'invalid_sdp' };
+  return { ok: true, sdp };
+}
+
 async function withTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
@@ -174,6 +191,17 @@ function readStudentToken(req: IncomingMessage, payload: AvatarVoicePayload) {
   const authorization = req.headers.authorization;
   if (authorization?.startsWith('Student ')) return authorization.slice('Student '.length);
   return payload.studentToken;
+}
+
+function readAvatarSessionId(req: IncomingMessage) {
+  const headerSessionId = req.headers['x-avatar-session-id']?.toString();
+  if (headerSessionId) return optionalIdentifier(headerSessionId);
+  try {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    return optionalIdentifier(url.searchParams.get('sessionId'));
+  } catch {
+    return undefined;
+  }
 }
 
 function isUuid(value: string | undefined) {
@@ -301,6 +329,85 @@ async function speakWithOpenAI(payload: AvatarVoicePayload, res: ServerResponse,
   }
 }
 
+export function buildOpenAIRealtimeSessionConfig(setting?: OpenAIVoiceProviderSetting) {
+  return {
+    type: 'realtime',
+    model: process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2',
+    instructions:
+      process.env.OPENAI_REALTIME_INSTRUCTIONS ||
+      'You are Eiden, a warm Korean classroom avatar coach. Speak Korean clearly, keep turns short, and help the student explore the current job scene without scoring or judging.',
+    audio: {
+      output: {
+        voice: process.env.OPENAI_REALTIME_VOICE || setting?.voice || process.env.OPENAI_TTS_VOICE || 'marin'
+      },
+      input: {
+        turn_detection: {
+          type: 'server_vad',
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 700
+        },
+        transcription: {
+          model: process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe',
+          language: 'ko'
+        }
+      }
+    }
+  };
+}
+
+async function createRealtimeSessionWithOpenAI(
+  offerSdp: string,
+  res: ServerResponse,
+  schoolId: string,
+  payload: AvatarVoicePayload,
+  resolveGate: (schoolId: string, payload: AvatarVoicePayload) => Promise<VoiceProviderGate>
+) {
+  const gate = await resolveGate(schoolId, payload);
+  if (!gate.enabled) {
+    json(res, 200, { error: gate.reason });
+    return;
+  }
+
+  let apiKey: string;
+  try {
+    apiKey = decryptSecret(gate.setting.encrypted_api_key);
+  } catch {
+    json(res, 200, { error: 'openai_key_missing' });
+    return;
+  }
+
+  const form = new FormData();
+  form.set('sdp', offerSdp);
+  form.set('session', JSON.stringify(buildOpenAIRealtimeSessionConfig(gate.setting)));
+
+  try {
+    const response = await withTimeout((signal) =>
+      fetch('https://api.openai.com/v1/realtime/calls', {
+        method: 'POST',
+        signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: form
+      })
+    );
+
+    if (!response.ok) {
+      json(res, 200, { error: `openai_realtime_http_${response.status}` });
+      return;
+    }
+
+    const answerSdp = await response.text();
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/sdp');
+    res.end(answerSdp);
+  } catch (error) {
+    if (!isExpectedOpenAITtsFailure(error)) throw error;
+    json(res, 200, { error: 'openai_realtime_unavailable' });
+  }
+}
+
 export function createAvatarVoiceHandler(options: AvatarVoiceHandlerOptions = {}) {
   const getDb = () => options.db ?? getPool();
   const resolveGate = options.resolveVoiceProviderGate ?? ((schoolId: string, payload: AvatarVoicePayload) => resolveVoiceProviderGate(schoolId, payload, getDb()));
@@ -352,3 +459,61 @@ export function createAvatarVoiceHandler(options: AvatarVoiceHandlerOptions = {}
 }
 
 export const avatarVoiceHandler = createAvatarVoiceHandler();
+
+export function createAvatarRealtimeSessionHandler(options: AvatarVoiceHandlerOptions = {}) {
+  const getDb = () => options.db ?? getPool();
+  const resolveGate = options.resolveVoiceProviderGate ?? ((schoolId: string, payload: AvatarVoicePayload) => resolveVoiceProviderGate(schoolId, payload, getDb()));
+
+  return async function avatarRealtimeSessionHandler(req: IncomingMessage, res: ServerResponse) {
+    try {
+      if (req.method !== 'POST') {
+        json(res, 405, { error: 'method_not_allowed' });
+        return;
+      }
+
+      if (!sameOriginAllows(req)) {
+        json(res, 403, { error: 'origin_not_allowed' });
+        return;
+      }
+
+      if (!rateLimitAllows(req)) {
+        json(res, 429, { error: 'rate_limited' });
+        return;
+      }
+
+      const payload: AvatarVoicePayload = {
+        provider: 'openai',
+        input: 'realtime',
+        sessionId: readAvatarSessionId(req)
+      };
+
+      if (!payload.sessionId) {
+        json(res, 401, { error: 'session_context_required' });
+        return;
+      }
+      if (!hasAvatarVoiceCredential(req, payload)) {
+        json(res, 401, { error: 'session_access_required' });
+        return;
+      }
+
+      const sdp = await readSdpOffer(req);
+      if (!sdp.ok) {
+        json(res, sdp.status, { error: sdp.error });
+        return;
+      }
+
+      const auth = await authenticateAvatarVoiceRequest(req, payload, getDb());
+      if (!auth.ok) {
+        json(res, auth.status, { error: auth.error });
+        return;
+      }
+
+      await createRealtimeSessionWithOpenAI(sdp.sdp, res, auth.schoolId, payload, resolveGate);
+    } catch (error) {
+      console.error(error);
+      json(res, 500, { error: 'internal_error' });
+    }
+  };
+}
+
+export const avatarRealtimeSessionHandler = createAvatarRealtimeSessionHandler();

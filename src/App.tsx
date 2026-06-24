@@ -57,6 +57,7 @@ import {
   updateRosterStudent
 } from './adapters';
 import { appAssets, getJobVisual, getSceneImage, jobEidenWelcome } from './assets';
+import { startAvatarRealtimeConversation, type AvatarRealtimeConnection } from './avatarRealtimeClient';
 import { speakText } from './avatarSpeech';
 import { getJob, getSceneAacOptions, getSceneNarration, initialState, jobs, stages } from './data';
 import type {
@@ -774,6 +775,12 @@ export function App() {
   const [classEntryJobId, setClassEntryJobId] = useState<JobId | null>(null);
   const [classEntryStudentId, setClassEntryStudentId] = useState<string | null>(null);
   const [classEntryMessage, setClassEntryMessage] = useState<string | null>(null);
+  const [avatarRealtime, setAvatarRealtime] = useState({
+    active: false,
+    pending: false,
+    message: null as string | null
+  });
+  const avatarRealtimeRef = useRef<AvatarRealtimeConnection | null>(null);
   const job = getJob(state.selectedJobId);
   const theme = getJobTheme(job.id);
   const currentScene = job.scenes.find((scene) => scene.id === state.selectedSceneId) ?? job.scenes[state.currentSceneIndex] ?? job.scenes[0];
@@ -785,6 +792,17 @@ export function App() {
   useEffect(() => {
     localSessionRepository.save(cleanPersistedTeacherState(state));
   }, [state]);
+
+  useEffect(() => {
+    if (state.view !== 'day' || !currentApiStudentSession()) {
+      stopAvatarRealtimeConversation();
+    }
+  }, [state.view, state.studentSession]);
+
+  useEffect(() => () => {
+    avatarRealtimeRef.current?.stop();
+    avatarRealtimeRef.current = null;
+  }, []);
 
   useEffect(() => {
     writeHistoryView(state.view, 'replace');
@@ -1100,6 +1118,43 @@ export function App() {
     return isApiStudentSession(state.studentSession) && state.studentSession.sessionId ? state.studentSession : null;
   }
 
+  function stopAvatarRealtimeConversation() {
+    avatarRealtimeRef.current?.stop();
+    avatarRealtimeRef.current = null;
+    setAvatarRealtime((current) => current.active || current.pending || current.message
+      ? { active: false, pending: false, message: null }
+      : current);
+  }
+
+  async function toggleAvatarRealtimeConversation() {
+    if (avatarRealtimeRef.current) {
+      stopAvatarRealtimeConversation();
+      return;
+    }
+
+    const session = currentApiStudentSession();
+    if (!session) {
+      setAvatarRealtime({ active: false, pending: false, message: '선생님이 시작한 학생 세션에서 사용할 수 있어요.' });
+      return;
+    }
+
+    setAvatarRealtime({ active: false, pending: true, message: '마이크 연결 중입니다.' });
+    try {
+      const connection = await startAvatarRealtimeConversation(avatarSpeechContext(state), {
+        onStatus: (status) => {
+          if (status === 'connected') setAvatarRealtime({ active: true, pending: false, message: '이든과 대화 중입니다.' });
+          if (status === 'closed') setAvatarRealtime((current) => current.pending ? current : { active: false, pending: false, message: null });
+        }
+      });
+      avatarRealtimeRef.current = connection;
+      setAvatarRealtime({ active: true, pending: false, message: '이든과 대화 중입니다.' });
+    } catch (error) {
+      console.error('Avatar realtime conversation failed.', error);
+      avatarRealtimeRef.current = null;
+      setAvatarRealtime({ active: false, pending: false, message: '마이크 대화를 연결하지 못했습니다.' });
+    }
+  }
+
   function persistStudentSupportEvent(action: SupportActionId) {
     const session = currentApiStudentSession();
     if (!session || action === 'replay') return;
@@ -1280,6 +1335,10 @@ export function App() {
             coachReply={state.coachReply}
             sceneTurnCount={state.sceneTurnCount}
             replaying={state.replaying}
+            realtimeAvailable={Boolean(currentApiStudentSession())}
+            realtimeActive={avatarRealtime.active}
+            realtimePending={avatarRealtime.pending}
+            realtimeMessage={avatarRealtime.message}
             resting={state.resting}
             onScene={(index, id) =>
               update({
@@ -1294,6 +1353,7 @@ export function App() {
             }
             onAacOption={chooseAacOption}
             onSupport={supportAction}
+            onRealtimeToggle={() => void toggleAvatarRealtimeConversation()}
             onBack={() => go('intro')}
             onNext={() => {
                 beginSummaryFromDay();
