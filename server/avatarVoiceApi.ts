@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getPool, type Queryable } from './db/client.ts';
-import { decryptSecret, hashToken, parseCookies, teacherSessionCookieName, verifyStudentToken } from './api/security.ts';
+import { getPool, type Queryable } from './db/client.js';
+import { decryptSecret, hashToken, parseCookies, teacherSessionCookieName, verifyStudentToken } from './api/security.js';
 
 type AvatarVoiceProvider = 'openai';
 
@@ -291,7 +291,7 @@ async function resolveVoiceProviderGate(schoolId: string, _payload: AvatarVoiceP
 
 async function speakWithOpenAI(payload: AvatarVoicePayload, res: ServerResponse, schoolId: string, resolveGate: (schoolId: string, payload: AvatarVoicePayload) => Promise<VoiceProviderGate>) {
   const gate = await resolveGate(schoolId, payload);
-  if (!gate.enabled) {
+  if (gate.enabled === false) {
     json(res, 200, { error: gate.reason });
     return;
   }
@@ -364,7 +364,7 @@ async function createRealtimeSessionWithOpenAI(
   resolveGate: (schoolId: string, payload: AvatarVoicePayload) => Promise<VoiceProviderGate>
 ) {
   const gate = await resolveGate(schoolId, payload);
-  if (!gate.enabled) {
+  if (gate.enabled === false) {
     json(res, 200, { error: gate.reason });
     return;
   }
@@ -430,7 +430,7 @@ export function createAvatarVoiceHandler(options: AvatarVoiceHandlerOptions = {}
       }
 
       const parsed = await readJson(req);
-      if (!parsed.ok) {
+      if (parsed.ok === false) {
         json(res, parsed.status, { error: parsed.error });
         return;
       }
@@ -497,7 +497,7 @@ export function createAvatarRealtimeSessionHandler(options: AvatarVoiceHandlerOp
       }
 
       const sdp = await readSdpOffer(req);
-      if (!sdp.ok) {
+      if (sdp.ok === false) {
         json(res, sdp.status, { error: sdp.error });
         return;
       }
