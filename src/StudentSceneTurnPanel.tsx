@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import {
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { getSceneImage, jobEidenWelcome } from './assets';
 import { getJob, getSceneNarration } from './data';
@@ -137,6 +139,21 @@ export function DayExperience({
                 <p>{resting ? '잠시 쉬어도 괜찮아요. 준비되면 선생님과 함께 이어가요.' : guardedTurn.voiceScript}</p>
               </div>
             </div>
+            {realtimeAvailable && onRealtimeToggle && (
+              <div className={realtimeActive ? 'avatar-realtime-callout active' : 'avatar-realtime-callout'}>
+                <button
+                  type="button"
+                  className="avatar-realtime-start"
+                  aria-label={realtimeActive ? '이든 실시간 대화 끄기' : '이든 실시간 대화 시작'}
+                  aria-pressed={realtimeActive}
+                  disabled={realtimePending}
+                  onClick={onRealtimeToggle}
+                >
+                  {realtimeActive ? <MicOff size={24} /> : <Mic size={24} />}
+                  <span>{realtimePending ? '마이크 연결 중' : realtimeActive ? '대화 중지' : '이든과 말하기'}</span>
+                </button>
+              </div>
+            )}
             <StudentSceneTurnChoices
               displayText={guardedTurn.displayText}
               studentQuestion={guardedTurn.studentQuestion}
@@ -152,10 +169,6 @@ export function DayExperience({
             />
             <SupportActionBar
               replaying={replaying}
-              realtimeAvailable={realtimeAvailable}
-              realtimeActive={realtimeActive}
-              realtimePending={realtimePending}
-              onRealtimeToggle={onRealtimeToggle}
               onSupport={chooseSupportAction}
             />
             {realtimeMessage && (

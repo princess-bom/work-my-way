@@ -537,11 +537,11 @@ function cleanPersistedTeacherState(state: AppState): AppState {
   };
 }
 
-export function avatarSpeechContext(state: AppState) {
-  if (isApiStudentSession(state.studentSession)) {
+export function avatarSpeechContextForStudentSession(studentSession: AppState['studentSession']) {
+  if (isApiStudentSession(studentSession)) {
     return {
-      sessionId: state.studentSession.sessionId,
-      studentToken: state.studentSession.studentToken,
+      sessionId: studentSession.sessionId,
+      studentToken: studentSession.studentToken,
       allowBrowserFallback: false
     };
   }
@@ -549,6 +549,16 @@ export function avatarSpeechContext(state: AppState) {
   return {
     allowBrowserFallback: true
   };
+}
+
+export function avatarSpeechContext(state: AppState) {
+  return avatarSpeechContextForStudentSession(state.studentSession);
+}
+
+export function getAvatarSceneVoiceScript(jobId: JobId, sceneId: string, sceneTurnCount: number) {
+  const targetJob = getJob(jobId);
+  const targetScene = targetJob.scenes.find((scene) => scene.id === sceneId) ?? targetJob.scenes[0];
+  return getGuardedStudentSceneTurn(targetJob.id, targetScene, sceneTurnCount).voiceScript;
 }
 
 export function applyResolvedStudentContext(state: AppState, context: ApiStudentSessionContext): AppState {
@@ -1005,12 +1015,14 @@ export function App() {
 
     if (state.studentSession.sessionId) {
       go('day');
+      speakApiSceneVoice(state.selectedJobId, state.selectedSceneId, state.sceneTurnCount, state.studentSession);
       return;
     }
 
     setStudentSessionStarting(true);
     try {
       const sessionId = await createExplorationSession(state.studentSession, state.selectedJobId);
+      const startedSession = { ...state.studentSession, sessionId };
       writeHistoryView('day', 'push');
       setState((current) => ({
         ...applyStartedStudentSession(current, sessionId),
@@ -1020,6 +1032,7 @@ export function App() {
         replaying: false
       }));
       scrollToPageTop();
+      speakApiSceneVoice(state.selectedJobId, state.selectedSceneId, state.sceneTurnCount, startedSession);
     } catch {
       go('landing');
     } finally {
@@ -1093,6 +1106,7 @@ export function App() {
       setClassEntryModalOpen(false);
       setClassEntryMessage(null);
       scrollToPageTop();
+      speakApiSceneVoice(nextJobId, nextJob.scenes[0].id, 0, startedContext);
     } catch (error) {
       setClassEntryMessage(getStudentLaunchErrorMessage(error));
     } finally {
@@ -1116,6 +1130,11 @@ export function App() {
 
   function currentApiStudentSession() {
     return isApiStudentSession(state.studentSession) && state.studentSession.sessionId ? state.studentSession : null;
+  }
+
+  function speakApiSceneVoice(jobId: JobId, sceneId: string, sceneTurnCount: number, session: ApiStudentSessionContext | null) {
+    if (!session?.sessionId) return;
+    void speakText(getAvatarSceneVoiceScript(jobId, sceneId, sceneTurnCount), avatarSpeechContextForStudentSession(session));
   }
 
   function stopAvatarRealtimeConversation() {
@@ -1340,7 +1359,8 @@ export function App() {
             realtimePending={avatarRealtime.pending}
             realtimeMessage={avatarRealtime.message}
             resting={state.resting}
-            onScene={(index, id) =>
+            onScene={(index, id) => {
+              const session = currentApiStudentSession();
               update({
                 currentSceneIndex: index,
                 selectedSceneId: id,
@@ -1349,8 +1369,9 @@ export function App() {
                 sceneTurnCount: 0,
                 replaying: false,
                 resting: false
-              })
-            }
+              });
+              speakApiSceneVoice(job.id, id, 0, session);
+            }}
             onAacOption={chooseAacOption}
             onSupport={supportAction}
             onRealtimeToggle={() => void toggleAvatarRealtimeConversation()}

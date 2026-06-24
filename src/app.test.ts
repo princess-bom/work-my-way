@@ -42,6 +42,7 @@ import {
   getSummaryMotivation,
   getSummaryStudentExpression,
   getStudentLaunchPrefillFromSearch,
+  getAvatarSceneVoiceScript,
   hasBannedCopy,
   mergePersistedStateForInitialLoad,
   avatarSpeechContext,
@@ -153,6 +154,15 @@ describe('student exploration copy and records', () => {
       studentToken: 'student-token-1',
       allowBrowserFallback: false
     });
+  });
+
+  it('uses the guarded scene turn script for provider avatar speech', () => {
+    expect(getAvatarSceneVoiceScript('barista-aide', 'prep', 0)).toBe(
+      getGuardedStudentSceneTurn('barista-aide', getJob('barista-aide').scenes[0], 0).voiceScript
+    );
+    expect(getAvatarSceneVoiceScript('barista-aide', 'missing-scene', 0)).toBe(
+      getGuardedStudentSceneTurn('barista-aide', getJob('barista-aide').scenes[0], 0).voiceScript
+    );
   });
 
   it('restores a local class-entry roster after the teacher page reloads', () => {
