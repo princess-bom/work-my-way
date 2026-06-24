@@ -325,7 +325,10 @@ describe('avatar voice api', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe('https://api.openai.com/v1/realtime/calls');
-    expect(init?.headers).toMatchObject({ Authorization: 'Bearer decrypted-school-openai-key' });
+    expect(init?.headers).toMatchObject({
+      Authorization: 'Bearer decrypted-school-openai-key',
+      'OpenAI-Safety-Identifier': expect.any(String)
+    });
     const form = init?.body as FormData;
     expect(form.get('sdp')).toBe('offer-sdp');
     const session = JSON.parse(String(form.get('session')));
@@ -333,11 +336,7 @@ describe('avatar voice api', () => {
       type: 'realtime',
       model: 'gpt-realtime-2',
       audio: {
-        output: { voice: 'settings-voice' },
-        input: {
-          turn_detection: { type: 'server_vad' },
-          transcription: { model: 'gpt-4o-mini-transcribe', language: 'ko' }
-        }
+        output: { voice: 'settings-voice' }
       }
     });
   });

@@ -339,18 +339,6 @@ export function buildOpenAIRealtimeSessionConfig(setting?: OpenAIVoiceProviderSe
     audio: {
       output: {
         voice: process.env.OPENAI_REALTIME_VOICE || setting?.voice || process.env.OPENAI_TTS_VOICE || 'marin'
-      },
-      input: {
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 700
-        },
-        transcription: {
-          model: process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe',
-          language: 'ko'
-        }
       }
     }
   };
@@ -387,7 +375,8 @@ async function createRealtimeSessionWithOpenAI(
         method: 'POST',
         signal,
         headers: {
-          Authorization: `Bearer ${apiKey}`
+          Authorization: `Bearer ${apiKey}`,
+          'OpenAI-Safety-Identifier': hashToken(`${schoolId}:${payload.sessionId}`)
         },
         body: form
       })
