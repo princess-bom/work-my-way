@@ -44,6 +44,7 @@ import {
   getStudentLaunchPrefillFromSearch,
   hasBannedCopy,
   mergePersistedStateForInitialLoad,
+  avatarSpeechContext,
   teacherDashboardNavigation
 } from './App';
 import { getSceneImage } from './assets';
@@ -111,6 +112,48 @@ describe('student exploration copy and records', () => {
     expect(restored.visualSupportOpen).toBe(false);
     expect(restored.resting).toBe(false);
     expect(restored.replaying).toBe(false);
+  });
+
+  it('does not allow browser TTS fallback for demo/local avatar speech', () => {
+    const context = avatarSpeechContext({
+      ...initialState,
+      studentSession: {
+        mode: 'demo',
+        startedAt: '2026-06-22T00:00:00.000Z',
+        classId: 'local-1',
+        studentId: 'local-student-1',
+        displayName: '홍길동'
+      },
+      teacherEvidenceTarget: {
+        studentId: 'local-student-1',
+        sessionId: 'local-session-local-student-1'
+      }
+    });
+
+    expect(context).toEqual({
+      sessionId: 'local-session-local-student-1',
+      allowBrowserFallback: false
+    });
+  });
+
+  it('keeps API avatar speech provider-only with the student token', () => {
+    const context = avatarSpeechContext({
+      ...initialState,
+      studentSession: {
+        mode: 'api',
+        classId: 'class-1',
+        studentId: 'student-1',
+        studentToken: 'student-token-1',
+        sessionId: 'session-1',
+        startedAt: '2026-06-22T00:00:00.000Z'
+      }
+    });
+
+    expect(context).toEqual({
+      sessionId: 'session-1',
+      studentToken: 'student-token-1',
+      allowBrowserFallback: false
+    });
   });
 
   it('restores a local class-entry roster after the teacher page reloads', () => {

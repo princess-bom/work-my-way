@@ -536,7 +536,7 @@ function cleanPersistedTeacherState(state: AppState): AppState {
   };
 }
 
-function avatarSpeechContext(state: AppState) {
+export function avatarSpeechContext(state: AppState) {
   if (isApiStudentSession(state.studentSession)) {
     return {
       sessionId: state.studentSession.sessionId,
@@ -547,7 +547,7 @@ function avatarSpeechContext(state: AppState) {
 
   return {
     sessionId: state.teacherEvidenceTarget?.sessionId,
-    allowBrowserFallback: true
+    allowBrowserFallback: false
   };
 }
 
