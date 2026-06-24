@@ -24,11 +24,15 @@ describe('avatar realtime microphone client', () => {
     const closePeerConnection = vi.fn();
 
     class FakePeerConnection {
+      iceGatheringState = 'complete';
+      localDescription = { type: 'offer', sdp: 'offer-sdp-with-candidates' };
       addTrack = addTrack;
       createDataChannel = createDataChannel;
       setLocalDescription = setLocalDescription;
       setRemoteDescription = setRemoteDescription;
       close = closePeerConnection;
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
 
       async createOffer() {
         return { type: 'offer', sdp: 'offer-sdp' };
@@ -66,7 +70,7 @@ describe('avatar realtime microphone client', () => {
         'x-avatar-session-id': '11111111-1111-4111-8111-111111111111',
         'x-student-context': 'student-token-1'
       },
-      body: 'offer-sdp'
+      body: 'offer-sdp-with-candidates'
     });
     expect(setRemoteDescription).toHaveBeenCalledWith(expect.objectContaining({ type: 'answer', sdp: 'answer-sdp' }));
 

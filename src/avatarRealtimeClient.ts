@@ -39,6 +39,25 @@ function createRemoteAudioSink() {
   };
 }
 
+function waitForIceGatheringComplete(peerConnection: RTCPeerConnection, timeoutMs = 2500) {
+  if (peerConnection.iceGatheringState === 'complete') return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      peerConnection.removeEventListener('icegatheringstatechange', handleStateChange);
+      resolve();
+    };
+    const handleStateChange = () => {
+      if (peerConnection.iceGatheringState === 'complete') finish();
+    };
+    const timeout = window.setTimeout(finish, timeoutMs);
+    peerConnection.addEventListener('icegatheringstatechange', handleStateChange);
+  });
+}
+
 async function readRealtimeAnswer(response: Response) {
   const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
   if (response.ok && contentType.includes('application/sdp')) {
@@ -110,7 +129,9 @@ export async function startAvatarRealtimeConversation(
 
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    if (!offer.sdp) throw new Error('avatar_realtime_offer_failed');
+    await waitForIceGatheringComplete(peerConnection);
+    const offerSdp = peerConnection.localDescription?.sdp || offer.sdp;
+    if (!offerSdp) throw new Error('avatar_realtime_offer_failed');
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/sdp',
@@ -121,7 +142,7 @@ export async function startAvatarRealtimeConversation(
     const response = await fetch('/api/avatar/realtime-session', {
       method: 'POST',
       headers,
-      body: offer.sdp
+      body: offerSdp
     });
     const answerSdp = await readRealtimeAnswer(response);
 
