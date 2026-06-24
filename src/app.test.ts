@@ -1167,7 +1167,7 @@ describe('student exploration copy and records', () => {
         provider: 'openai',
         mimeType: 'audio/mpeg',
         audioBase64: Buffer.from('audio').toString('base64')
-      }), { status: 200 });
+      }), { status: 200, headers: { 'content-type': 'application/json; charset=utf-8' } });
     }) as typeof fetch;
 
     const audio = await requestAvatarSpeech('다시 들어요', 'alloy', { sessionId: 'session-1', studentToken });
@@ -1178,5 +1178,22 @@ describe('student exploration copy and records', () => {
     expect(fetchCalls[0]?.[1]?.headers).toMatchObject({ 'x-student-context': studentToken });
     expect(requestBody).toMatchObject({ input: '다시 들어요', sessionId: 'session-1' });
     expect(String(fetchCalls[0]?.[1]?.body)).not.toContain(studentToken);
+  });
+
+  it('reports non-JSON avatar speech responses as HTTP failures', async () => {
+    vi.stubGlobal('window', {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      atob: (value: string) => Buffer.from(value, 'base64').toString('binary')
+    });
+    globalThis.fetch = (async () =>
+      new Response('<!DOCTYPE html><title>Not found</title>', {
+        status: 404,
+        headers: { 'content-type': 'text/html; charset=utf-8' }
+      })) as typeof fetch;
+
+    await expect(requestAvatarSpeech('다시 들어요', 'alloy', { sessionId: 'session-1' })).rejects.toThrow(
+      'avatar_voice_http_404'
+    );
   });
 });

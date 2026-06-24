@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { getPool, withTransaction, type Queryable } from '../db/client.js';
+import { createAvatarVoiceHandler } from '../avatarVoiceApi.js';
 import {
   clearSessionCookie,
   createSessionToken,
@@ -679,6 +680,11 @@ export function createApiApp(db: Queryable = getPool()) {
   const app = express();
   const studentResolveLimit = rateLimiter(30, 60_000);
   const aiLimit = rateLimiter(20, 60_000);
+  const avatarVoiceHandler = createAvatarVoiceHandler({ db });
+
+  app.use('/api/avatar/speak', (req, res, next) => {
+    avatarVoiceHandler(req, res).catch(next);
+  });
 
   app.use(express.json({ limit: '64kb' }));
 

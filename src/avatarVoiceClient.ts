@@ -40,6 +40,19 @@ function base64ToBlobUrl(audioBase64: string, mimeType: string) {
   return URL.createObjectURL(blob);
 }
 
+async function readAvatarSpeechResponse(response: Response): Promise<AvatarSpeechApiResponse> {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  if (contentType && !contentType.includes('application/json')) {
+    return { error: `avatar_voice_http_${response.status}` };
+  }
+
+  try {
+    return (await response.json()) as AvatarSpeechApiResponse;
+  } catch {
+    return { error: `avatar_voice_http_${response.status}` };
+  }
+}
+
 export async function requestAvatarSpeech(input: string, voice = 'alloy', context: AvatarSpeechRequestContext = {}): Promise<AvatarSpeechAudio> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (context.studentToken) headers['x-student-context'] = context.studentToken;
@@ -48,7 +61,7 @@ export async function requestAvatarSpeech(input: string, voice = 'alloy', contex
     headers,
     body: JSON.stringify({ input, provider: 'openai', voice, sessionId: context.sessionId })
   });
-  const body = (await response.json()) as AvatarSpeechApiResponse;
+  const body = await readAvatarSpeechResponse(response);
 
   if (!response.ok || !body.audioBase64) {
     throw new Error(body.error || `avatar_voice_http_${response.status}`);

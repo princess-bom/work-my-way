@@ -624,6 +624,16 @@ describe('local api app', () => {
     expect(response.body).toEqual({ error: 'teacher_auth_required' });
   });
 
+  it('serves avatar speech from the shared API app instead of a static 404 fallback', async () => {
+    const response = await request(createApiApp(new ThrowingDb()))
+      .post('/api/avatar/speak')
+      .send({ provider: 'openai', input: '천천히 들어볼게요.', voice: 'alloy' })
+      .expect(401);
+
+    expect(response.type).toBe('application/json');
+    expect(response.body).toEqual({ error: 'session_context_required' });
+  });
+
   it('scopes teacher login by school code when schools reuse the same login id', async () => {
     const db = new TeacherLoginDb();
     const app = createApiApp(db);
