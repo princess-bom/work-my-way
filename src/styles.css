@@ -2548,6 +2548,10 @@ h3 {
   align-items: start;
 }
 
+.teacher-content-grid.is-empty {
+  grid-template-columns: 1fr;
+}
+
 .teacher-content-main {
   display: grid;
   gap: 18px;
@@ -3081,27 +3085,6 @@ h3 {
 .drawer-actions {
   display: grid;
   gap: 10px;
-}
-
-.teacher-empty-drawer {
-  display: grid;
-  place-content: start;
-  align-content: start;
-  gap: 8px;
-  min-height: 560px;
-  padding: 22px;
-  border: 1px solid var(--line-soft);
-  border-radius: 24px;
-  background: linear-gradient(180deg, #fffefd, #fff4e5);
-}
-
-.teacher-empty-drawer strong {
-  color: var(--text-strong);
-}
-
-.teacher-empty-drawer p {
-  margin: 0;
-  color: var(--text-muted);
 }
 
 .modal-backdrop {
@@ -6885,6 +6868,10 @@ h3 {
   grid-template-columns: minmax(0, 1fr) clamp(360px, 31vw, 468px);
   gap: 16px;
   align-items: start;
+}
+
+.view-teacher .teacher-content-grid.is-empty {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .view-teacher .teacher-content-main {

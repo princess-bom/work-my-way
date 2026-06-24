@@ -1650,7 +1650,7 @@ function TeacherDashboard({
                 </div>
               </section>
 
-              <section className={`teacher-content-grid ${drawerLog ? 'drawer-open' : ''}`}>
+              <section className={`teacher-content-grid ${drawerLog ? 'drawer-open' : 'is-empty'}`}>
                 <div className="teacher-content-main">
                   <div className="teacher-table-card">
                     <div className="teacher-table-head" aria-hidden="true">
@@ -1701,14 +1701,7 @@ function TeacherDashboard({
                   )}
                 </div>
 
-                {drawerLog ? (
-                  <TeacherDrawer log={drawerLog} onClose={onClose} onConfirm={onConfirm} />
-                ) : (
-                  <aside className="teacher-empty-drawer" aria-label="학생 관찰 상세 대기">
-                    <strong>학생 기록을 선택해 주세요</strong>
-                    <p>오른쪽 상세 패널에서 장면, 표현, 지원 도구를 바로 확인할 수 있어요.</p>
-                  </aside>
-                )}
+                {drawerLog ? <TeacherDrawer log={drawerLog} onClose={onClose} onConfirm={onConfirm} /> : null}
               </section>
             </>
           )}
