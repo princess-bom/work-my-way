@@ -6,6 +6,8 @@ Work, My Way is an OpenAI Build Week education prototype. It is designed around 
 
 The public demo is for adult educators and judges only. It contains no real learner, school, diagnosis, assessment, or IEP data.
 
+**Production demo:** [work-my-way.vercel.app](https://work-my-way.vercel.app). It is deployed with the safe fallback until the project receives a server-side `OPENAI_API_KEY`; it must show a live GPT-5.6 response before the final video and Devpost submission.
+
 ## What the demo proves
 
 1. A synthetic learner practises one **Library Assistant** routine across two earlier sessions and a current third session.

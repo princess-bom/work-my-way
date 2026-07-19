@@ -22,7 +22,8 @@
 
 ## Submission evidence still required
 
-- Vercel production URL with a server-side `OPENAI_API_KEY` for an actual live GPT-5.6 support response.
+- Vercel production deployment: `https://work-my-way.vercel.app` (currently safe fallback until a server-side `OPENAI_API_KEY` is added).
+- Verify an actual live GPT-5.6 support response after that environment variable is added.
 - Public English YouTube video under three minutes, with audible explanation of both Codex and GPT-5.6.
 - This session's `/feedback` ID pasted into Devpost.
 - The user's own-voice Devpost narrative, checked against the factual prompts in `DEVPOST_SUBMISSION.md`.

@@ -10,7 +10,7 @@ Devpost asks entrants to write project descriptions in their own voice. This fil
 | Tagline | IEP-linked vocational mastery learning with teacher-confirmed evidence |
 | Track | Education |
 | Public repository | `https://github.com/princess-bom/work-my-way` |
-| Demo URL | Add Vercel production URL after deployment |
+| Demo URL | `https://work-my-way.vercel.app` |
 | Video | Add public English YouTube URL, under three minutes |
 | Codex feedback | Add the primary core-functionality `/feedback` Session ID |
 | Built with | Codex; GPT-5.6; OpenAI Responses API; Structured Outputs; React; TypeScript; Vite; Zod; Vitest; Playwright; Vercel |
@@ -56,6 +56,7 @@ Write these answers personally, keeping only claims the demo visibly proves.
 
 ## Devpost compliance checklist
 
+- [ ] Add `OPENAI_API_KEY` to Vercel Production, redeploy, and verify a live GPT-5.6 response.
 - [ ] Upload only after the Vercel production demo is working consistently.
 - [ ] Record a public English video under three minutes with audible Codex and GPT-5.6 explanation.
 - [ ] Ensure the repository is public and the MIT license is present.
