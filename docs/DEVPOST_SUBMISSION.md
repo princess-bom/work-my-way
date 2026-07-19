@@ -15,6 +15,20 @@ Devpost asks entrants to write project descriptions in their own voice. This fil
 | Codex feedback | Add the primary core-functionality `/feedback` Session ID |
 | Built with | Codex; GPT-5.6; OpenAI Responses API; Structured Outputs; React; TypeScript; Vite; Zod; Vitest; Playwright; Vercel |
 
+## Required Devpost form answers
+
+These are the current fields returned by Devpost for OpenAI Build Week. They are intentionally not filled automatically where they represent your identity or a final submission assertion.
+
+| Devpost field | Prepared value or required owner input |
+| --- | --- |
+| Submitter Type | Choose **Individual**, **Team of Individuals**, or **Organization** yourself |
+| Country of Residence | Choose your actual country of residence yourself |
+| Category | **Education** |
+| Public/private code repository | `https://github.com/princess-bom/work-my-way` |
+| Judge testing URL/instructions | `https://work-my-way.vercel.app` — synthetic adult-evaluator demo; add that it requires no account and currently needs the live GPT key configured before final review |
+| `/feedback` Session ID | Add from this primary core-functionality Codex task |
+| Video | Required: public English YouTube video under three minutes with audible Codex and GPT-5.6 explanation |
+
 ## Founder-voice prompts
 
 Write these answers personally, keeping only claims the demo visibly proves.
