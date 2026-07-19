@@ -4,7 +4,7 @@ type BrandMarkProps = {
 
 export function BrandMark({ compact = false }: BrandMarkProps) {
   return (
-    <div className="brand-mark" aria-label="Work, My Way">
+    <div className="brand-mark" aria-label="꿈이든 내일탐색">
       <span className="brand-symbol" aria-hidden="true">
         <span />
         <span />
@@ -12,8 +12,8 @@ export function BrandMark({ compact = false }: BrandMarkProps) {
       </span>
       {!compact && (
         <span className="brand-words">
-          <strong>Work, My Way</strong>
-          <small>Mastery learning</small>
+          <strong>꿈이든 내일탐색</strong>
+          <small>반복 숙달학습</small>
         </span>
       )}
     </div>

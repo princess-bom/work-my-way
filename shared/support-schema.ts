@@ -125,7 +125,8 @@ const bannedLanguage = [
   /\bfailure\b/i,
   /\bwrong\s+answer\b/i,
   /\blow\s+ability\b/i,
-  /\bmaster(?:y|ed)\b/i
+  /\bmaster(?:y|ed)\b/i,
+  /점수|순위|적합성?|진단|능력\s*부족|숙달(?:했다|완료|됨|되었습니다)/i
 ];
 
 export function packetHasBannedLanguage(packet: SupportPacket): boolean {

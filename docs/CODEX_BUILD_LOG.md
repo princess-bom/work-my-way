@@ -4,26 +4,36 @@
 
 - Date: July 19, 2026 (Korea time)
 - Working environment: Codex desktop
-- Public repository: `princess-bom/work-my-way`
+- Repository: `princess-bom/work-my-way`
+- Build branch: `feat/mvp-carousel-rebuild`
+- Base commit before rebuild: `e889b50c08ba023920be25cc897c1c1d590a6215`
 - Primary Codex `/feedback` Session ID: add before final Devpost submission.
 
-## Decisions and evidence
+## Decisions and implementation evidence
 
-1. Examined the earlier Korean concept and separated its enduring educational premise from the Build Week implementation.
-2. Kept the MVP centered on **mastery learning**, not interview practice: vocational interview rehearsal follows later, after job exploration has enough repeated evidence.
-3. Represented individualisation as one synthetic IEP-linked, observable goal rather than uploading or sending any real IEP.
-4. Made the record the connector: a versioned device-local store holds synthetic profiles, goal, sessions, attempts, and teacher decisions; corruption and reset have deterministic behaviour.
-5. Made mastery deterministic: two qualifying attempts from different sessions at no more than visual-choice support, followed by a teacher confirmation.
-6. Restricted GPT-5.6 to just-in-time, structured support. The model cannot decide mastery, score a learner, infer job fit, diagnose, or see a full record.
-7. Used two Git worktrees in parallel: one for the mastery/data/API boundary, one for the student and educator experience. Integrated both reviewed commits on `main`.
-8. Generated the active Library Assistant scene with Codex Image Generation and recorded provenance.
-9. Selected Vercel as the one judge runtime. The public deployment is explicitly an adult evaluator synthetic demo, not a service for children or real records.
-10. Verified deterministic tests, build, secret scan, automated browser flow, and the deployed-browser flow before release.
+1. Inspected the earlier personal MVP and its rendered screenshots before changing the Build Week repository.
+2. Preserved the manual three-job carousel, low-cognitive-load tablet interaction, declared character/diorama assets, and educational premise as prior work.
+3. Rebuilt the learner experience in this repository as landing, synthetic entry, job introduction, Library Assistant practice, summary, records, and teacher review.
+4. Kept interview practice outside the MVP. It remains a locked future phase after vocational exploration mastery.
+5. Represented individualisation as one synthetic IEP-linked observable goal rather than accepting or sending a real IEP document.
+6. Moved the deterministic mastery rule into a shared server/client module: the two latest qualifying attempts, different sessions, no more than visual-choice support, followed by teacher confirmation.
+7. Added isolated synthetic server runs with PostgreSQL, row-locked updates, 24-hour expiry, local process-memory fallback, and visible device fallback for non-durable serverless runs.
+8. Restricted GPT-5.6 Luna to Korean just-in-time structured support. The model cannot decide mastery, score a learner, infer job fit, diagnose, or see a full record.
+9. Added optional GPT-Realtime-2.1 mini WebRTC conversation using a server-minted client secret, synthetic safety identifier, scene-bounded Korean prompt, AAC fallback, and microphone cleanup.
+10. Added and refreshed unit/service tests, build checks, secret scanning, safety documentation, fidelity criteria, and the Devpost/demo evidence set.
+
+## Fresh verification recorded in this task
+
+- TypeScript and Vite production build passed after the carousel, server, and Realtime changes.
+- Vitest passed with deterministic mastery, server persistence, teacher confirmation, support safety, and Realtime session tests.
+- The in-app browser was selected first for visual QA, but enterprise policy blocked local `127.0.0.1`. No browser workaround was used; final visual QA is deferred to the HTTPS Vercel deployment.
 
 ## Submission evidence still required
 
-- Vercel production deployment: `https://work-my-way.vercel.app` (currently safe fallback until a server-side `OPENAI_API_KEY` is added).
-- Verify an actual live GPT-5.6 support response after that environment variable is added.
-- Public English YouTube video under three minutes, with audible explanation of both Codex and GPT-5.6.
-- This session's `/feedback` ID pasted into Devpost.
-- The user's own-voice Devpost narrative, checked against the factual prompts in `DEVPOST_SUBMISSION.md`.
+- Revoke the exposed drafting key and configure a replacement server-only Vercel key.
+- Configure Vercel PostgreSQL and verify `서버에 저장됨` on the production URL.
+- Verify one live GPT-5.6 support response and one Realtime session on HTTPS.
+- Capture current tablet and mobile screenshots and complete the fidelity ledger.
+- Push the reviewed branch to the public repository.
+- Record the public English video under three minutes.
+- Add this session's `/feedback` ID to Devpost.

@@ -1,43 +1,55 @@
-# Demo Script — Target 2:35
+# Demo Script — Target 2:45
 
-Use this as a recording outline, then speak it in your own natural voice. The public video must be in English, under three minutes, and use the deployed Vercel URL with a visibly live GPT-5.6 response.
+Use this as a recording outline, then speak naturally in your own voice. The public video should be in English, under three minutes, and use the deployed Vercel URL.
 
-## 0:00–0:25 — Founder context and problem
+## 0:00–0:25 — Founder context
 
-“I am raising a child with a developmental disability. I left my former career, studied applied behaviour analysis, and entered a master's program in AI-convergent education design because I wanted to build tools that could help more families. In special-school vocational education, I saw that career exploration needs more than one exposure. Learners need repetition, individual goals, and records a teacher can trust.”
+“I am raising a child with a developmental disability. I left my former career, studied applied behaviour analysis, and entered a master's programme in AI-convergent education design because I wanted to build tools that could help more families. In special-school vocational education, I saw that career exploration needs repetition, individual goals, and records a teacher can trust.”
 
-## 0:25–0:55 — The mastery loop
+## 0:25–0:50 — Tablet-first job exploration
 
-Show the student screen.
+Show the carousel and move from Barista to Library Assistant.
 
-“This is Work, My Way. The demo uses only synthetic data for adult evaluation. It shows one Library Assistant routine across two earlier sessions and a current third session. The goal is observable: complete both steps with no more than visual choices. This is not a score or a career recommendation.”
+“This is Work, My Way. The interface is intentionally quiet: one job world, two arrows, and one large action. Three jobs are visible, but the Library Assistant path is the complete mastery demonstration. The others are honest previews.”
 
-## 0:55–1:25 — Live GPT-5.6 support
+## 0:50–1:15 — Observable goal and accessible response
 
-Click **Show me** and show the generation state.
+Enter the fictional learner flow and open the library scene.
 
-“When the learner explicitly asks for support, GPT-5.6 creates one short, structured support message. The request contains the scene and a de-identified goal/support context, not an IEP or student identity. GPT-5.6 makes the presentation smaller and clearer; it does not decide whether the learner has mastered the skill.”
+“The learner works toward one synthetic IEP-linked observable goal across repeated sessions. Speech is optional. Large picture choices remain available at all times, so the interface does not depend on fluent reading or speaking.”
 
-## 1:25–1:55 — Evidence and teacher decision
+## 1:15–1:40 — GPT-5.6 support
 
-Choose **Place it on the return cart**, then open **Teacher timeline**.
+Click **그림으로 볼래요** and show the live generation state.
 
-“The app records this one observable synthetic response locally. The deterministic rule checks the two latest qualifying attempts across different sessions, at no more than visual-choice support. Only after that pattern exists does the teacher checkpoint unlock. The educator—not the model—confirms the visible evidence.”
+“When the learner explicitly asks for support, GPT-5.6 Luna creates one short Korean support packet. It receives the synthetic scene and allow-listed goal context, not an IEP document or student identity. It changes the support, not the goal, and it never decides mastery.”
 
-## 1:55–2:15 — Safety and future phase
+## 1:40–2:00 — Realtime conversation
 
-Point to the support draft and locked Interview practice stage.
+If the deployed connection is stable, click **이든과 말하기**, allow the microphone, and stop after one short turn.
 
-“The model is blocked from scoring, diagnosing, ranking jobs, or claiming mastery. Interview practice is intentionally locked. It comes later, after a learner has built vocational exploration mastery.”
+“Optional speech uses GPT-Realtime-2.1 mini over WebRTC. The conversation is limited to this visible scene, and leaving the screen closes the microphone. Audio and transcripts are not added to the learner record. Picture choices remain the default fallback.”
 
-## 2:15–2:35 — Close
+If Realtime is not stable during recording, skip the live microphone and point to the opt-in control while stating the same boundary. Do not spend the demo waiting on permissions.
 
-“Codex helped me turn this educational theory into a tested prototype: the data model, the safety boundary, the interface, generated visual, and verification. Work, My Way is a small MVP, but it makes the learning loop visible: repeated practice, individualised support, structured evidence, and teacher judgment.”
+## 2:00–2:30 — Repetition and teacher confirmation
+
+Choose the return cart, open the summary, records, and teacher view, then confirm the evidence.
+
+“The server records one observable synthetic action and its support level. Deterministic code checks the two latest qualifying attempts across different sessions. Only when that pattern exists does the teacher checkpoint unlock. The educator, not either model, confirms the record.”
+
+## 2:30–2:45 — Future phase and close
+
+Point to the locked interview phase.
+
+“Interview practice is intentionally later, after vocational exploration learning. Codex helped me rebuild the interface, data boundary, model roles, tests, and evidence around one principle: repetition and individualisation come first.”
 
 ## Recording checklist
 
-- Use the Vercel production URL, not a local mock.
-- Confirm the support message identifies live GPT-5.6 rather than a safe fallback.
-- Keep the synthetic/demo notice visible at least once.
-- Do not show any real learner, IEP, school record, API key, or private browser tab.
-- Record narration and cursor together; avoid silent slides.
+- Use the Vercel production URL.
+- Confirm the carousel starts cleanly and Library Assistant opens without explanation.
+- Show `서버에 저장됨`, not a fallback, for the final recording.
+- Confirm the support message reports a live GPT-5.6 response.
+- Test microphone permission before recording; never show keys or private tabs.
+- Keep the synthetic-data boundary visible at least once.
+- Confirm the final video duration is below 3:00.

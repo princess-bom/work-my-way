@@ -1,32 +1,35 @@
 # Build Week Delta
 
-This file separates the pre-existing Korean product context from the implementation created for OpenAI Build Week after the submission window opened.
+This document separates the pre-existing MVP from the work completed after the OpenAI Build Week submission window opened. The prior MVP was a personal prototype and was never submitted to another competition.
 
-## Pre-existing context
+## Pre-existing work retained
 
-- The problem framing: vocational exploration should be concrete, paced, and teacher-guided for learners who benefit from repeatable instruction.
-- The founder's observation of special-school vocational education and the importance of individualised goals.
-- Early ideas about AAC-friendly support, teacher review, privacy, and eventual interview practice after vocational exploration is established.
-- Selected original visual assets retained in the repository but not presented as new Build Week work.
+- The founder's problem framing: vocational exploration for learners with developmental disabilities needs repeated practice, individualised goals, and records a teacher can interpret.
+- The sequence in which vocational exploration comes first and interview rehearsal comes only after sufficient learning; interview practice is not an MVP feature.
+- A Korean tablet-first product concept with a manual three-job carousel, large picture choices, the Eiden guide character, and early teacher-record ideas.
+- Selected original diorama, character, and picture-choice assets listed in `ASSET_PROVENANCE.md`.
+- Earlier local code used only as a design and interaction reference. It remains in a separate local repository and is not represented as new Build Week code.
 
-## New Build Week work
+## New Build Week implementation
 
-- A clean English React and TypeScript implementation in this public repository.
-- A focused **Work, My Way** student and teacher experience for one synthetic Library Assistant routine.
-- A versioned device-local synthetic store with profiles, one IEP-linked observable goal, two earlier sessions, a current third session, append-only attempts, teacher decisions, reset, and corruption recovery.
-- A deterministic mastery rule: two most recent qualifying responses, from distinct sessions, at or below visual-choice support, followed by teacher confirmation.
-- A GPT-5.6 Responses API support boundary that receives only a de-identified goal/support context and never decides mastery.
-- Structured Outputs, Zod validation, prohibited-language handling, server-side credentials, and a visibly honest fallback.
-- A new Library Assistant visual generated with Codex Image Generation specifically for this Build Week implementation.
-- Unit, service, build, secret, browser-flow, persistence/reset, desktop, and mobile verification.
-- Submission evidence, safety notes, demo recording script, and Codex build log.
+- A rebuilt React and TypeScript application in this public repository, following the original low-cognitive-load interaction while replacing the prior implementation.
+- A three-job full-screen carousel with Barista, Library Assistant, and Baker visible; one complete Library Assistant mastery-learning path and two honest previews.
+- A Korean learner journey: synthetic entry, job introduction, scene practice, AAC-style picture choices, support actions, summary, structured records, and teacher review.
+- A versioned synthetic state with profiles, one IEP-linked observable goal, three sessions, append-only attempts, support levels, teacher decisions, reset, and recovery.
+- Server persistence with isolated random run IDs, PostgreSQL when configured, a 24-hour expiry, a local process-memory fallback, and an explicit browser-device fallback for non-durable serverless runs.
+- A deterministic mastery rule: the two latest qualifying attempts, from distinct sessions, at or below visual-choice support, followed by teacher confirmation.
+- A GPT-5.6 Responses API boundary that receives only allow-listed synthetic scene/goal/support context and never decides mastery.
+- Korean Structured Outputs, Zod validation, prohibited-language handling, server-only credentials, `store: false`, and a deterministic safe fallback.
+- Optional Korean speech-to-speech guidance through GPT-Realtime-2.1 mini and WebRTC, using a short-lived client secret, scene-bounded instructions, microphone cleanup, and AAC fallback.
+- Unit and service tests, build and secret checks, visual-fidelity criteria, safety notes, demo script, Devpost fact sheet, and Codex build evidence.
 
 ## Deliberately not implemented
 
-- Interview practice. It belongs after vocational exploration mastery and is displayed only as a locked future phase.
-- Real learners, real IEPs, schools, sign-in, cloud records, or automated educational decisions.
-- Career ranking, suitability, diagnosis, scoring, or placement recommendations.
+- Interview practice or interview scoring.
+- Real learners, real IEP documents, schools, sign-in, production educational records, or automated educational decisions.
+- Career ranking, suitability, diagnosis, placement, ability inference, or recommendation.
+- Production safeguards required for real minors; this deployment is an adult-evaluator synthetic demo only.
 
 ## Audit trail
 
-The public Git history contains the Build Week commits. The primary Codex session will be attached through Devpost `/feedback` before submission. Judges should evaluate this repository's dated Build Week work, not the separate earlier Korean concept.
+The Git history should show the base Build Week implementation and the later carousel/mastery/server/Realtime rebuild. The Devpost submission should link the primary Codex `/feedback` session and describe this delta in the founder's own words.

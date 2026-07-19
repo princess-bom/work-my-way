@@ -3,47 +3,47 @@ import type { SupportPacket, SupportPacketResponse, SupportRequest } from './sup
 export function createSafePacket(request: SupportRequest): SupportPacket {
   if (request.action === 'pause') {
     return {
-      studentMessage: 'Taking a break is part of learning. We can return when you are ready.',
+      studentMessage: '잠시 쉬어도 괜찮아요. 준비되면 다시 시작해요.',
       studentChoices: [
-        { label: 'Pause here', visualCue: 'A calm pause symbol' },
-        { label: 'Return with a teacher', visualCue: 'A teacher and learner together' }
+        { label: '여기서 쉬기', visualCue: '차분한 쉬기 표시' },
+        { label: '선생님과 다시 하기', visualCue: '선생님과 학생이 함께 있는 그림' }
       ],
       recommendedSupport: 'pause_and_resume',
       teacherSignal: 'explicit_pause_request',
-      teacherSummary: 'The learner explicitly requested a break during this scene.',
-      teacherNextStep: 'Offer a pause and let the learner choose when to return.',
-      evidence: 'Based only on the learner selecting Take a break in this scene.',
+      teacherSummary: '학생이 현재 장면에서 쉬기를 직접 선택했습니다.',
+      teacherNextStep: '쉬는 시간을 제공하고 다시 시작할 때를 학생이 선택하도록 합니다.',
+      evidence: '현재 장면에서 학생이 쉬기 버튼을 선택한 사실만 반영했습니다.',
       safety: { noScoring: true, noDiagnosis: true, teacherReviewRequired: true }
     };
   }
 
   if (request.action === 'help') {
     return {
-      studentMessage: 'We can ask for help and choose one small next step.',
+      studentMessage: '도움을 요청하고 작은 단계 하나를 골라봐요.',
       studentChoices: [
-        { label: 'Ask a teacher', visualCue: 'A raised hand beside a teacher' },
-        { label: 'Look at one example', visualCue: 'One clear example card' }
+        { label: '선생님께 물어보기', visualCue: '선생님 옆에서 손을 든 그림' },
+        { label: '예시 하나 보기', visualCue: '분명한 예시 카드 한 장' }
       ],
       recommendedSupport: 'teacher_check',
       teacherSignal: 'explicit_help_request',
-      teacherSummary: 'The learner explicitly asked for help with this scene.',
-      teacherNextStep: 'Check in and offer one concrete example before continuing.',
-      evidence: 'Based only on the learner selecting I need help in this scene.',
+      teacherSummary: '학생이 현재 장면에서 도움을 직접 요청했습니다.',
+      teacherNextStep: '계속하기 전에 구체적인 예시 하나를 제공합니다.',
+      evidence: '현재 장면에서 학생이 도움 버튼을 선택한 사실만 반영했습니다.',
       safety: { noScoring: true, noDiagnosis: true, teacherReviewRequired: true }
     };
   }
 
   return {
-    studentMessage: 'Let’s make this one step smaller.',
+    studentMessage: '한 단계만 작게 나누어 그림으로 살펴봐요.',
     studentChoices: [
-      { label: 'Check the return cart', visualCue: 'A cart holding returned books' },
-      { label: 'Match the shelf label', visualCue: 'A book beside a shelf label' }
+      { label: '반납 카트 보기', visualCue: '반납된 책이 담긴 카트 그림' },
+      { label: '책 라벨 보기', visualCue: '책과 책장 라벨이 함께 있는 그림' }
     ],
     recommendedSupport: 'visual_choices',
     teacherSignal: 'explicit_visual_request',
-    teacherSummary: 'The learner explicitly asked to see this Library Assistant scene with visual choices.',
-    teacherNextStep: 'Review the scene with two visual choices.',
-    evidence: 'Based only on the learner’s explicit support request in this scene.',
+    teacherSummary: '학생이 도서관 장면을 그림 선택으로 보고 싶다고 요청했습니다.',
+    teacherNextStep: '두 개의 그림 선택으로 현재 장면을 다시 살펴봅니다.',
+    evidence: '현재 장면에서 학생이 그림 도움을 요청한 사실만 반영했습니다.',
     safety: { noScoring: true, noDiagnosis: true, teacherReviewRequired: true }
   };
 }

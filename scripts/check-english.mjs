@@ -1,29 +1,33 @@
-import { readdir, readFile } from 'node:fs/promises';
-import { extname, join, relative } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join, relative } from 'node:path';
 
 const root = process.cwd();
-const checkedExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.json', '.html', '.md', '.css']);
-const ignoredDirectories = new Set(['node_modules', 'dist', '.git']);
 const findings = [];
-const koreanPattern = new RegExp('\\p{Script=Hangul}', 'u');
+const koreanPattern = new RegExp('\\p{Script=Hangul}', 'gu');
+const latinPattern = /[A-Za-z]/g;
+const judgeDocuments = [
+  'README.md',
+  'ASSET_PROVENANCE.md',
+  'BUILD_WEEK_DELTA.md',
+  'PRIVACY_AND_SAFETY.md',
+  'SUBMISSION_CHECKLIST.md',
+  'docs/BUILD_WEEK_MASTER_PLAN.md',
+  'docs/CODEX_BUILD_LOG.md',
+  'docs/DEMO_SCRIPT.md',
+  'docs/DEVPOST_SUBMISSION.md',
+  'docs/design/FIDELITY_LEDGER.md'
+];
 
-async function walk(directory) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue;
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      await walk(path);
-      continue;
-    }
-    if (!checkedExtensions.has(extname(entry.name))) continue;
-    const text = await readFile(path, 'utf8');
-    if (koreanPattern.test(text)) findings.push(relative(root, path));
-  }
+for (const file of judgeDocuments) {
+  const path = join(root, file);
+  const text = await readFile(path, 'utf8');
+  const hangulCount = text.match(koreanPattern)?.length ?? 0;
+  const latinCount = text.match(latinPattern)?.length ?? 0;
+  const languageRatio = hangulCount / Math.max(1, hangulCount + latinCount);
+  if (languageRatio > 0.12) findings.push(relative(root, path));
 }
-
-await walk(root);
 if (findings.length > 0) {
-  console.error(`Non-English Korean text found in: ${findings.join(', ')}`);
+  console.error(`Judge document is not English-first: ${findings.join(', ')}`);
   process.exit(1);
 }
-console.log('English-only text check passed.');
+console.log('English judge-document check passed. Korean learner UI is intentionally excluded.');

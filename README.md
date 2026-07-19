@@ -1,71 +1,79 @@
-# Work, My Way
+# Work, My Way / 꿈이든 내일탐색
 
-**A synthetic, educator-evaluation prototype for IEP-linked vocational mastery learning.**
+**A tablet-first vocational mastery-learning prototype with IEP-linked goals, structured synthetic evidence, and teacher confirmation.**
 
-Work, My Way is an OpenAI Build Week education prototype. It is designed around a narrow but important question: can vocational exploration be repeated in small, observable steps until a learner has enough evidence to continue—with the teacher, not the model, making the final decision?
+Work, My Way is an OpenAI Build Week education project. It asks a narrow question: can a learner explore a job through small, repeated, observable practice while AI adjusts support without becoming the evaluator?
 
-The public demo is for adult educators and judges only. It contains no real learner, school, diagnosis, assessment, or IEP data.
+The public deployment is a synthetic demonstration for adult educators and judges. It must not be used with real learners, IEPs, schools, diagnoses, or educational records.
 
-**Production demo:** [work-my-way.vercel.app](https://work-my-way.vercel.app). It is deployed with the safe fallback until the project receives a server-side `OPENAI_API_KEY`; it must show a live GPT-5.6 response before the final video and Devpost submission.
+**Demo:** [work-my-way.vercel.app](https://work-my-way.vercel.app)
 
-## What the demo proves
+## What the experience shows
 
-1. A synthetic learner practises one **Library Assistant** routine across two earlier sessions and a current third session.
-2. The visible goal is linked to a synthetic IEP-style observable criterion: complete both steps with no more than visual choices.
-3. **Show me**, **Help**, and **Break** send a minimal, de-identified context to GPT-5.6 for a bounded support message. The deterministic task and mastery rule stay outside the model.
-4. Each current response is recorded locally with session, observable outcome, support level, and selected choice.
-5. The deterministic rule requires the two most recent qualifying responses to be from different sessions and at or below visual-choice support.
-6. Only then can an educator confirm the visible evidence. GPT-5.6 never decides or claims mastery.
-7. Interview practice is visibly locked as a future phase; it is not implemented in this MVP.
+1. A low-cognitive-load, manual carousel presents Barista, Library Assistant, and Baker as three full-screen job worlds.
+2. The Library Assistant path is the one complete end-to-end mastery demonstration; the other two are honest previews.
+3. A fictional learner practises one observable, synthetic IEP-linked goal across two earlier sessions and a current third session.
+4. The learner can always answer through large picture choices. Speech is optional.
+5. An explicit **Show me**, **Help**, or **Break** request asks GPT-5.6 for one bounded support packet. GPT-5.6 never scores, diagnoses, recommends a job, or decides mastery.
+6. A deterministic rule requires the two latest qualifying attempts to come from different sessions and use no more than visual-choice support.
+7. A teacher must review and confirm that evidence before the state becomes confirmed.
+8. Interview practice remains visibly locked as a future phase after vocational exploration mastery; it is not implemented in this MVP.
 
-## Why GPT-5.6 is necessary
+## Model roles
 
-GPT-5.6 is not a tutor, scorer, placement tool, or mastery engine. On an explicit support request, the server asks it for one short, structured support packet that includes a student-facing message and a factual teacher draft. The request contains only the synthetic work scene plus a derived goal and support context—never an IEP document or learner identifier.
+### GPT-5.6 Luna
 
-The Responses API boundary uses Structured Outputs, Zod validation, prohibited-language checks, server-side credentials, and an honest safe fallback. Deterministic application code owns the record, the mastery calculation, and the teacher checkpoint.
+The server uses the Responses API with Structured Outputs to create a short Korean support message and factual teacher draft only after an explicit support request. The request contains a synthetic scene plus allow-listed goal/support context, never a learner identifier or IEP document. `store: false`, Zod validation, prohibited-language checks, and a deterministic Korean fallback protect the boundary.
+
+### GPT-Realtime-2.1 mini
+
+The learner can opt into a short Korean scene conversation through WebRTC. The standard OpenAI API key remains server-side; the browser receives a short-lived client secret. The prompt is restricted to the current library scene, at most two short sentences and one question per turn, with no scoring, diagnosis, career-fit judgment, mastery decision, interview practice, or personal-data request. Leaving the learning screen closes the peer connection and microphone. Audio and transcripts are not written to the application record.
+
+## Structured synthetic evidence
+
+The demo stores a versioned synthetic state containing fictional profiles, one observable goal, three sessions, attempts, support levels, and teacher decisions.
+
+- With `POSTGRES_URL` or `DATABASE_URL`, each judge run is isolated by a random run ID and expires after 24 hours.
+- Without PostgreSQL, the API can use process memory for local development. Because serverless memory is not durable across requests, the deployed browser immediately labels and mirrors that state as a device fallback.
+- If the demo API is unavailable, the UI also visibly reports a device fallback and continues with synthetic local state.
+- The generative model output is not an input to the mastery function.
 
 ## Run locally
 
-Requirements: Node.js 20+; an OpenAI API key is required only to demonstrate a live model response.
+Requirements: Node.js 20+.
 
 ```bash
 npm install
 cp .env.example .env.local
-# Add OPENAI_API_KEY to .env.local for live GPT-5.6 support
 npm run dev
 ```
 
-Without a key, the interaction remains functional and clearly labels the safe fallback rather than implying a model call occurred.
+`OPENAI_API_KEY` is needed for live GPT-5.6 and Realtime calls. PostgreSQL is optional for local development.
 
 ## Verify
 
 ```bash
-npx playwright install chromium
-npm run verify
+npm run test
+npm run build
+npm run check:english
+npm run check:secrets
 ```
 
-The suite verifies the versioned local synthetic store, corruption recovery, deterministic mastery conditions, teacher confirmation, schema and safety guards, build, client-secret scan, persistence/reset, desktop interaction, and mobile layout.
-
-## Privacy and product boundary
-
-The demo stores synthetic records in the current browser's `localStorage` only. There is no sign-in, cloud database, student account, or server endpoint for learner records. `Reset synthetic demo` clears the local synthetic state.
-
-This is not a production student service. A real pilot would require school and family approval, role-based access, data retention/deletion controls, encryption, accessibility research with target learners, educator training, and jurisdiction-specific privacy review. See [PRIVACY_AND_SAFETY.md](PRIVACY_AND_SAFETY.md).
+The tests cover deterministic mastery, teacher confirmation, versioned fallback state, synthetic server-run isolation, 24-hour expiry, Realtime session configuration, support schemas, prohibited language, and missing-key fallbacks. The final release checklist also requires the deployed HTTPS browser flow and tablet/mobile visual review.
 
 ## Build Week transparency
 
-This repository is the new Build Week implementation. It has dated commits for the versioned mastery store, GPT-5.6 support boundary, teacher checkpoint, generated visual, tests, and submission evidence. The earlier Korean product concept remains outside this repository. [BUILD_WEEK_DELTA.md](BUILD_WEEK_DELTA.md) separates prior context from new work; [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md) records visual provenance.
+This repository meaningfully extends a pre-existing, never-submitted Korean MVP. The retained product premise, carousel interaction, character, and selected diorama assets are declared as prior work. Build Week work includes the rebuilt React experience, one complete Library Assistant mastery loop, server-side structured evidence, deterministic mastery boundary, GPT-5.6 support, GPT-Realtime-2.1 mini WebRTC conversation, teacher confirmation, safety controls, tests, and submission evidence.
 
-Codex was the primary working environment for product analysis, architecture, generated visual production, implementation, parallel worktree integration, safety testing, browser testing, and release evidence. The core build session is recorded in [docs/CODEX_BUILD_LOG.md](docs/CODEX_BUILD_LOG.md); add its `/feedback` Session ID before submitting.
+See [BUILD_WEEK_DELTA.md](BUILD_WEEK_DELTA.md), [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md), and [PRIVACY_AND_SAFETY.md](PRIVACY_AND_SAFETY.md).
 
 ## Project map
 
-- `src/data/` — versioned local synthetic record store and recovery
-- `src/domain/` — deterministic mastery rule
-- `src/` — student activity and teacher evidence views
-- `server/` and `api/` — stateless OpenAI Responses API boundary
-- `shared/` — support schemas, safety checks, and fallback
-- `docs/` — recording script, Build Week evidence, and submission fact sheet
+- `src/components/` — carousel, Korean learner flow, records, and teacher confirmation
+- `shared/` — synthetic state, deterministic mastery, support, and Realtime schemas
+- `server/` — PostgreSQL/memory demo service, GPT-5.6 support, and Realtime client-secret service
+- `api/` — Vercel serverless boundaries
+- `docs/` — Build Week evidence, demo script, fidelity ledger, and Devpost fact sheet
 
 ## License
 

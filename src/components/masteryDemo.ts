@@ -45,33 +45,33 @@ export type MasteryDemoViewModel = {
 
 export const masteryDemo: MasteryDemoViewModel = {
   learner: {
-    name: 'Alex M.',
-    initials: 'AM',
-    notice: 'Synthetic learner for adult evaluator review only'
+    name: '민준 (가상 학생)',
+    initials: '민준',
+    notice: '성인 심사자를 위한 가상 학생 기록'
   },
-  learningGoal: 'Complete both observable steps with no more than visual choices.',
+  learningGoal: '서로 다른 두 회기에서 그림 선택 도움 이하로 반납 카트를 선택한다.',
   activity: {
-    title: 'Library Assistant',
-    context: 'A visitor has returned a book at the library desk.',
-    prompt: 'What should happen to the returned book first?',
-    attemptLabel: 'Session 3 · Current attempt',
+    title: '도서관 사서',
+    context: '도서관 책상 위에 반납된 책이 있어요.',
+    prompt: '반납된 책은 어디에 먼저 놓을까요?',
+    attemptLabel: '3회기 · 오늘의 학습',
     choices: [
       {
         id: 'return-cart',
-        label: 'Place it on the return cart',
-        description: 'Keep returned books together before they are sorted.',
+        label: '반납 카트에 놓아요',
+        description: '분류하기 전에 반납된 책을 한곳에 모아요.',
         isCanonical: true
       },
       {
         id: 'shelf-now',
-        label: 'Put it directly on a shelf',
-        description: 'Move it to a shelf before checking its location.',
+        label: '바로 책장에 꽂아요',
+        description: '위치를 확인하기 전에 책장에 놓아요.',
         isCanonical: false
       },
       {
         id: 'front-desk',
-        label: 'Leave it at the front desk',
-        description: 'Keep it where the visitor returned it.',
+        label: '책상에 그대로 두어요',
+        description: '반납된 자리에 책을 남겨 두어요.',
         isCanonical: false
       }
     ]
@@ -79,34 +79,34 @@ export const masteryDemo: MasteryDemoViewModel = {
   previousSessions: [
     {
       id: 'session-1',
-      label: 'Session 1',
-      dateLabel: 'Earlier exploration',
-      activity: 'Noticed the main parts of the library return area.',
-      supportLevel: 'Show me · visual scene labels',
-      evidence: 'Located the return cart when it was named in the scene.',
+      label: '1회기',
+      dateLabel: '이전 학습',
+      activity: '반납대 살펴보기',
+      supportLevel: '말로 한 번 도움',
+      evidence: '다른 위치를 선택하여 수업을 계속했습니다.',
       status: 'completed'
     },
     {
       id: 'session-2',
-      label: 'Session 2',
-      dateLabel: 'Previous attempt',
-      activity: 'Compared the return cart with the shelf label.',
-      supportLevel: 'Help · one guided prompt',
-      evidence: 'Explained that returned books are grouped before shelving.',
+      label: '2회기',
+      dateLabel: '이전 학습',
+      activity: '책 라벨 비교하기',
+      supportLevel: '그림 선택 도움',
+      evidence: '반납 카트를 선택하여 목표 행동이 관찰되었습니다.',
       status: 'completed'
     }
   ],
   futureStage: {
-    title: 'Interview practice',
-    description: 'Future phase · not part of this prototype'
+    title: '직업 면접 연습',
+    description: '미래 단계 · 이번 MVP에는 포함되지 않음'
   }
 };
 
 export function supportLevelLabel(level: SupportLevel): string {
-  if (level === 'none') return 'Independent response';
-  if (level === 'visual_choice') return 'Visual choices';
-  if (level === 'verbal_prompt') return 'One verbal prompt';
-  return 'Direct model';
+  if (level === 'none') return '도움 없이 수행';
+  if (level === 'visual_choice') return '그림 선택 도움';
+  if (level === 'verbal_prompt') return '말로 한 번 도움';
+  return '직접 시범 도움';
 }
 
 /** Maps only synthetic local records into presentation copy. It never derives a
@@ -118,13 +118,13 @@ export function createMasteryDemoView(state: DemoState): MasteryDemoViewModel {
     const attempt = state.attempts.find((item) => item.sessionId === session.id);
     return {
       id: session.id,
-      label: `Session ${index + 1}`,
-      dateLabel: index === 0 ? 'Earlier exploration' : 'Previous attempt',
+      label: `${index + 1}회기`,
+      dateLabel: '이전 학습',
       activity: session.activityLabel,
       supportLevel: attempt ? supportLevelLabel(attempt.supportLevel) : 'No attempt recorded',
       evidence: attempt?.criterionMet
-        ? 'Completed the visible library routine step.'
-        : 'A different step was selected; instruction continues.',
+        ? '반납 카트를 선택하여 목표 행동이 관찰되었습니다.'
+        : '다른 위치를 선택하여 수업을 계속했습니다.',
       status: 'completed' as const
     };
   });
@@ -139,15 +139,15 @@ export function createMasteryDemoView(state: DemoState): MasteryDemoViewModel {
 
 export function feedbackForChoice(choice: CanonicalChoice): string {
   if (choice.isCanonical) {
-    return 'You chose the return cart. That matches the library process: returned books stay together before they are sorted.';
+    return '반납 카트를 선택했습니다. 반납된 책을 분류하기 전에 한곳에 모으는 행동이 관찰되었습니다.';
   }
 
-  return `You chose “${choice.label}.” This attempt is recorded. In this library process, the return cart comes first so books can be sorted before shelving.`;
+  return `“${choice.label}”를 선택했습니다. 이 회기는 그대로 기록하고 다음 수업을 이어갑니다.`;
 }
 
 export function supportLabel(request: SupportRequest | null): string {
-  if (request === 'show') return 'Show me · visual choices';
-  if (request === 'help') return 'Help · one guiding prompt';
-  if (request === 'break') return 'Break · activity paused into one step';
-  return 'Independent view · support available';
+  if (request === 'show') return '그림 선택 도움';
+  if (request === 'help') return '말로 한 번 도움';
+  if (request === 'break') return '쉬기 요청(수행 도움 아님)';
+  return '도움 없이 수행';
 }

@@ -2,34 +2,47 @@
 
 ## This deployment
 
-- Is a synthetic demo for adult educator and judge evaluation.
+- Is a synthetic demonstration for adult educator and judge evaluation.
 - Uses a fictional learner, educator, goal, sessions, choices, attempts, and decisions.
-- Stores the synthetic record only in the current browser's `localStorage`; it is not synchronised or sent to an application database.
-- Provides `Reset synthetic demo` to return local state to the seeded synthetic record.
-- Does not accept real student data, sign users in, or operate as a student-facing production service.
+- Does not accept a name, diagnosis, school, IEP document, account, or real educational record.
+- Creates an isolated random demo run. PostgreSQL runs expire after 24 hours; without PostgreSQL, the UI identifies server-memory or device fallback storage.
+- Provides a reset action that restores the seeded synthetic record.
+- Must not be used as a student-facing production service.
 
-## What GPT-5.6 receives and does
+## GPT-5.6 boundary
 
 - Receives only a synthetic work scene, an explicit support action, a derived target skill and observable criterion, and a derived support/outcome context.
-- Never receives an IEP document, learner identifier, school name, diagnosis, or full historical record.
-- Produces one bounded student support message and one factual teacher draft through Structured Outputs.
-- Is prevented by prompt, schema, validation, and fallback from scoring, diagnosing, ranking, recommending a career, or claiming mastery.
+- Never receives a learner identifier, school name, diagnosis, IEP document, or full historical record.
+- Produces one bounded Korean student message and one factual teacher draft through Structured Outputs.
+- Cannot score, diagnose, rank, recommend a career, infer suitability, or claim mastery. Unsafe or malformed output is replaced by a deterministic fallback.
+- Uses `store: false`; operational logs contain action, mode, model, and latency, not raw prompt content.
 
-## What deterministic application code does
+## Realtime boundary
 
-- Records the current synthetic response as an append-only attempt with session, support level, selected choice, and observable result.
-- Requires the two latest qualifying attempts to be from different sessions and at or below visual-choice support before teacher review becomes available.
-- Requires an educator's explicit confirmation before the record becomes `mastered`.
-- Does not infer an ability, preference, job fit, or diagnosis from the record.
+- Starts only after the evaluator presses the microphone button and grants browser microphone permission.
+- Uses GPT-Realtime-2.1 mini over WebRTC with a short-lived client secret. The standard OpenAI API key never enters the browser bundle.
+- Uses a privacy-preserving hash of the random synthetic run ID as the OpenAI safety identifier.
+- Limits conversation to the visible library scene, short Korean turns, and one question at a time.
+- Prohibits scoring, diagnosis, job-fit judgment, mastery decisions, interview practice, and personal-data questions.
+- Keeps picture choices available at all times. Leaving the learning screen stops microphone tracks, closes the data channel, and closes the peer connection.
+- Does not write raw audio or transcripts to the synthetic application record.
+
+## Deterministic application boundary
+
+- Records only the selected action, session, support level, time, and observable result.
+- Requires the two latest qualifying attempts to come from different sessions and use no more than visual-choice support.
+- Requires a teacher's explicit confirmation before the state becomes confirmed.
+- Does not accept GPT-5.6 or Realtime output as mastery evidence.
+- Does not infer ability, preference, job fit, diagnosis, or placement from the record.
 
 ## Technical controls
 
-- The support API is POST-only and uses `Cache-Control: no-store`.
-- OpenAI credentials remain in server-side environment variables and must never use a `VITE_` prefix.
-- OpenAI storage is disabled for the support request.
-- Zod validates request and response payloads; banned evaluative and mastery-claim language triggers a deterministic safe fallback.
-- Operational logs limit themselves to action, mode, model, and latency rather than raw prompt content.
+- Demo, support, and Realtime session APIs are POST-only and use `Cache-Control: no-store`.
+- Credentials remain in server environment variables and never use a `VITE_` prefix.
+- Zod validates synthetic-state, support, and Realtime request/response boundaries.
+- PostgreSQL updates use row locks so concurrent writes do not silently overwrite each other.
+- The production build is scanned for key-like strings and server environment assignments.
 
 ## Before any real student pilot
 
-Do not use this prototype with real students or records. A real pilot requires school/family approval, an age-appropriate consent basis, identity and role controls, encryption, retention/deletion policy, accessibility testing with target learners, educator training, model evaluation, incident response, and jurisdiction-specific legal/privacy review.
+Do not use this prototype with real students or records. A real pilot requires school and family approval, an age-appropriate consent and assent basis, verified identity and roles, encryption, retention and deletion controls, accessibility research with target learners, educator training, model evaluation, abuse prevention, incident response, and jurisdiction-specific legal/privacy review. OpenAI's [Under 18 API Guidance](https://developers.openai.com/api/docs/guides/safety-checks/under-18-api-guidance) should be treated as a minimum platform reference, not a complete school-governance programme.

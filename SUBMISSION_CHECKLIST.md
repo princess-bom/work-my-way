@@ -1,47 +1,47 @@
 # Build Week Submission Checklist
 
-Official deadline: **July 21, 2026 at 5:00 PM Pacific / July 22, 2026 at 9:00 AM Korea time**. No submission changes are allowed after the deadline.
+Official deadline: **July 21, 2026 at 5:00 PM Pacific / July 22, 2026 at 9:00 AM Korea time**. Verify the deadline again in Devpost before submission.
 
 ## Product
 
-- [x] Separate English-first repository
-- [x] GPT-5.6 server integration with structured output
-- [x] Student support request flow
-- [x] Teacher edit and confirmation flow
-- [x] Missing-key and model-failure fallback
-- [x] Synthetic demo data label
-- [x] Desktop and mobile smoke coverage
-- [ ] Add a live `OPENAI_API_KEY` in the deployment environment
-- [ ] Verify one real GPT-5.6 response in the deployed app
-- [ ] Deploy and add the public test URL
+- [x] Manual three-job tablet carousel
+- [x] Complete Library Assistant mastery flow; honest Barista and Baker previews
+- [x] Korean learner UI with picture choices and low cognitive load
+- [x] Synthetic IEP-linked goal and three-session evidence
+- [x] Deterministic mastery threshold and teacher confirmation
+- [x] GPT-5.6 Korean structured support with safe fallback
+- [x] GPT-Realtime-2.1 mini WebRTC client-secret flow
+- [x] PostgreSQL server-run design with 24-hour expiry and explicit fallbacks
+- [x] Locked future interview phase
+- [ ] Revoke the exposed drafting API key
+- [ ] Configure replacement Vercel server-only key and PostgreSQL
+- [ ] Verify production support, Realtime, persistence, reset, and teacher confirmation
 
 ## Evidence
 
 - [x] Declare reused and new work
 - [x] Declare asset provenance
-- [x] Document safety boundary
-- [x] Include automated tests and production build
-- [ ] Create a public GitHub repository and push this folder
-- [ ] Set the intended public Git author name/email and amend the local-only author if needed
-- [ ] Add the final public repository URL
-- [ ] Run Codex `/feedback` and record the Session ID
-- [ ] Preserve the primary Codex task as timestamped build evidence
-- [ ] Replace placeholders in the Devpost submission
+- [x] Document privacy, model roles, and no-real-minor boundary
+- [x] Add deterministic, server, support, and Realtime tests
+- [ ] Capture current tablet, learning, teacher, and mobile artifacts from HTTPS
+- [ ] Complete the final design-fidelity ledger
+- [ ] Push the reviewed branch to the public GitHub repository
+- [ ] Add the primary Codex `/feedback` Session ID
 
 ## Demo video, under three minutes
 
-- [ ] Record in English with audible narration
-- [ ] Show the learner selecting **Show me**
-- [ ] Show a live GPT-5.6 badge—not fallback mode
-- [ ] Open Teacher view and confirm the note
-- [ ] State the safety boundary in one sentence
-- [ ] Upload as a public or unlisted YouTube video
-- [ ] Verify duration is below 3:00
+- [ ] Record in English with audible founder narration
+- [ ] Show the manual carousel and why the UI is intentionally minimal
+- [ ] Show the synthetic IEP-linked goal and repeated sessions
+- [ ] Show a live GPT-5.6 response, not fallback mode
+- [ ] Show or explain the optional Realtime 2.1 mini boundary without waiting on permissions
+- [ ] Confirm the teacher evidence and point to locked interview practice
+- [ ] Upload as public or unlisted YouTube and verify duration below 3:00
 
 ## Final submission
 
-- [ ] Choose the Education track
-- [ ] Add a concise English project description
-- [ ] Add public demo, repository, and YouTube links
-- [ ] Add technologies used: Codex, GPT-5.6, Responses API, React, TypeScript
-- [ ] Submit before the official deadline and save a confirmation screenshot
+- [ ] Choose Education
+- [ ] Add public demo, repository, video, and `/feedback` links
+- [ ] Name Codex, GPT-5.6, Responses API, Structured Outputs, GPT-Realtime-2.1 mini, WebRTC, React, TypeScript, PostgreSQL, and Vercel
+- [ ] Write the final description in the founder's own voice
+- [ ] Submit before the verified deadline and save confirmation evidence
