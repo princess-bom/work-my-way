@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+.vercel/
+playwright-report/
+test-results/
+docs/qa/latest-*.png
+.DS_Store
