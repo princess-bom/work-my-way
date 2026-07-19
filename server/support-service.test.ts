@@ -9,6 +9,14 @@ const request: SupportRequest = {
     sceneTitle: 'Returning a book',
     description: 'A visitor returned a book.',
     question: 'Where should it go first?'
+  },
+  goalContext: {
+    targetSkill: 'Follow a two-step workplace routine',
+    observableCriterion: 'Completes both observable steps with visual choices'
+  },
+  supportContext: {
+    currentSupport: 'visual_choice',
+    recentOutcome: 'criterion_not_met'
   }
 };
 
@@ -41,6 +49,12 @@ describe('GPT-5.6 support service', () => {
     expect(result.generation.responseId).toBe('resp_demo');
     expect(result.safety.teacherReviewRequired).toBe(true);
     expect(create).toHaveBeenCalledOnce();
+    const modelInput = JSON.parse(create.mock.calls[0][0].input as string);
+    expect(modelInput).toMatchObject({
+      goalContext: request.goalContext,
+      supportContext: request.supportContext
+    });
+    expect(JSON.stringify(modelInput)).not.toMatch(/learnerId|profileId|diagnosis|iepText/i);
   });
 
   it('uses a clearly labeled safe fallback when no API key exists', async () => {
@@ -64,5 +78,18 @@ describe('GPT-5.6 support service', () => {
     expect(result.generation.mode).toBe('safe-fallback');
     expect(result.generation.reason).toContain('prohibited evaluative language');
     expect(result.teacherSummary).not.toContain('best fit');
+  });
+
+  it('blocks model claims about mastery and falls back safely', async () => {
+    const create = vi.fn().mockResolvedValue({
+      id: 'resp_mastery_claim',
+      output_text: JSON.stringify({
+        ...safeModelPacket,
+        teacherSummary: 'The learner has mastered this skill.'
+      })
+    });
+    const result = await createSupportPacket(request, { client: { responses: { create } } });
+    expect(result.generation.mode).toBe('safe-fallback');
+    expect(result.teacherSummary).not.toContain('mastered');
   });
 });

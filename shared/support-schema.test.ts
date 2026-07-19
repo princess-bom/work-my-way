@@ -35,4 +35,28 @@ describe('support safety contract', () => {
   it('accepts factual support language', () => {
     expect(packetHasBannedLanguage(createSafePacket(request))).toBe(false);
   });
+
+  it('accepts only allow-listed de-identified goal and support context', () => {
+    expect(SupportRequestSchema.safeParse({
+      ...request,
+      goalContext: {
+        targetSkill: 'Follow a two-step workplace routine',
+        observableCriterion: 'Completes both observable steps with visual choices'
+      },
+      supportContext: {
+        currentSupport: 'visual_choice',
+        recentOutcome: 'criterion_not_met'
+      }
+    }).success).toBe(true);
+
+    expect(SupportRequestSchema.safeParse({
+      ...request,
+      learnerName: 'Synthetic learner',
+      goalContext: {
+        targetSkill: 'Follow a routine',
+        observableCriterion: 'Completes two steps',
+        diagnosis: 'must never cross the API boundary'
+      }
+    }).success).toBe(false);
+  });
 });

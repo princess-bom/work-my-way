@@ -3,6 +3,16 @@ import { z } from 'zod';
 export const SupportActionSchema = z.enum(['visual', 'help', 'pause']);
 export type SupportAction = z.infer<typeof SupportActionSchema>;
 
+export const GoalContextSchema = z.object({
+  targetSkill: z.string().min(1).max(100),
+  observableCriterion: z.string().min(1).max(180)
+}).strict();
+
+export const SupportContextSchema = z.object({
+  currentSupport: z.enum(['none', 'visual_choice', 'verbal_prompt', 'direct_model']),
+  recentOutcome: z.enum(['not_attempted', 'criterion_met', 'criterion_not_met'])
+}).strict();
+
 export const SupportRequestSchema = z.object({
   action: SupportActionSchema,
   scene: z.object({
@@ -10,9 +20,11 @@ export const SupportRequestSchema = z.object({
     sceneTitle: z.string().min(1).max(100),
     description: z.string().min(1).max(240),
     question: z.string().min(1).max(240)
-  }),
-  selectedChoice: z.string().max(120).optional()
-});
+  }).strict(),
+  selectedChoice: z.string().max(120).optional(),
+  goalContext: GoalContextSchema.optional(),
+  supportContext: SupportContextSchema.optional()
+}).strict();
 export type SupportRequest = z.infer<typeof SupportRequestSchema>;
 
 export const StudentChoiceSchema = z.object({
@@ -112,7 +124,8 @@ const bannedLanguage = [
   /\bdeficit\b/i,
   /\bfailure\b/i,
   /\bwrong\s+answer\b/i,
-  /\blow\s+ability\b/i
+  /\blow\s+ability\b/i,
+  /\bmaster(?:y|ed)\b/i
 ];
 
 export function packetHasBannedLanguage(packet: SupportPacket): boolean {

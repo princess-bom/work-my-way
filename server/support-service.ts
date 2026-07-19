@@ -15,6 +15,7 @@ Your role is narrow: respond only to an explicit learner request for visual supp
 
 Hard rules:
 - Never score, rank, assess suitability, diagnose, infer ability, or recommend a career.
+- Never decide or claim mastery. Mastery is calculated from recorded attempts and confirmed by a teacher outside this service.
 - Describe only the explicit action in the current scene.
 - Use plain English. The student message should be one sentence with about 6 to 14 words.
 - Offer two or three concrete choices.
@@ -64,6 +65,8 @@ export async function createSupportPacket(
         supportAction: request.action,
         scene: request.scene,
         selectedChoice: request.selectedChoice ?? null,
+        goalContext: request.goalContext ?? null,
+        supportContext: request.supportContext ?? null,
         language: 'en'
       }),
       max_output_tokens: 600,
