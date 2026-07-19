@@ -18,7 +18,11 @@ Eiden Pathways helps learners explore concrete work moments at their own pace. W
 
 ## Inspiration
 
-Many career-exploration tools present a fixed amount of text, a fixed interaction pattern, and a final recommendation. That structure can turn support needs into friction—and can make AI feel like an evaluator. We wanted to explore a different role for AI: adapt one moment when asked, show the evidence boundary, and preserve educator judgment.
+South Korea has curriculum frameworks, public resources, and vocational education programs for students with disabilities. But policy is not the same as a learning experience.
+
+In the classrooms that inspired Eiden Pathways, learners did not always receive vocational exploration in a form they could consistently access: one concrete work scene, enough time to respond, visual or AAC-based choices, a safe way to ask for help, and a teacher who could see which support made the next step possible.
+
+This is the implementation gap we wanted to address. Many digital career tools still present a fixed amount of text, a fixed interaction pattern, or a final recommendation. That structure can turn support needs into friction—and can make AI feel like an evaluator. We wanted to explore a different role for AI: adapt one moment when asked, show the evidence boundary, and preserve educator judgment.
 
 ## What it does
 
