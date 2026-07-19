@@ -22,6 +22,7 @@ Official deadline: **July 21, 2026 at 5:00 PM Pacific / July 22, 2026 at 9:00 AM
 - [x] Document safety boundary
 - [x] Include automated tests and production build
 - [ ] Create a public GitHub repository and push this folder
+- [ ] Set the intended public Git author name/email and amend the local-only author if needed
 - [ ] Add the final public repository URL
 - [ ] Run Codex `/feedback` and record the Session ID
 - [ ] Preserve the primary Codex task as timestamped build evidence
