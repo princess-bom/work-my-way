@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   feedbackForChoice,
+  supportLevelLabel,
   supportLabel,
   type CanonicalChoiceId,
   type MasteryDemoViewModel,
@@ -19,12 +20,16 @@ import {
   type SupportRequest
 } from './masteryDemo';
 import { BrandMark } from './BrandMark';
+import type { MasteryStatus, SupportLevel } from '../domain/mastery';
+import type { SupportPacketResponse } from '../../shared/support-schema';
 
 type TeacherConsoleProps = {
   demo: MasteryDemoViewModel;
   supportRequest: SupportRequest | null;
+  supportPacket: SupportPacketResponse | null;
+  currentSupportLevel: SupportLevel | undefined;
   selectedChoiceId: CanonicalChoiceId | null;
-  confirmed: boolean;
+  masteryStatus: MasteryStatus;
   onConfirm: () => void;
   onBack: () => void;
 };
@@ -51,8 +56,10 @@ function SessionTimelineItem({ session }: { session: MasterySession }) {
 export function TeacherConsole({
   demo,
   supportRequest,
+  supportPacket,
+  currentSupportLevel,
   selectedChoiceId,
-  confirmed,
+  masteryStatus,
   onConfirm,
   onBack
 }: TeacherConsoleProps) {
@@ -60,6 +67,16 @@ export function TeacherConsole({
   const currentEvidence = selectedChoice
     ? feedbackForChoice(selectedChoice)
     : 'No activity choice has been submitted yet. The current attempt remains in progress.';
+  const teacherReviewReady = masteryStatus === 'ready_for_teacher_review';
+  const confirmed = masteryStatus === 'mastered';
+  const statusLabel = confirmed
+    ? 'Teacher confirmed'
+    : teacherReviewReady
+      ? 'Ready for teacher review'
+      : selectedChoice ? 'Instruction continues' : 'In progress';
+  const currentSupportLabel = currentSupportLevel
+    ? supportLevelLabel(currentSupportLevel)
+    : supportLabel(supportRequest);
 
   return (
     <main className="teacher-shell">
@@ -105,8 +122,8 @@ export function TeacherConsole({
             </section>
             <dl className="summary-metrics">
               <div><dt>Sessions shown</dt><dd>3</dd></div>
-              <div><dt>Current status</dt><dd>{selectedChoice ? 'Attempted' : 'In progress'}</dd></div>
-              <div><dt>Support in session 3</dt><dd>{supportRequest ? supportLabel(supportRequest) : 'None requested yet'}</dd></div>
+              <div><dt>Current status</dt><dd>{statusLabel}</dd></div>
+              <div><dt>Support in session 3</dt><dd>{currentSupportLabel}</dd></div>
             </dl>
             <div className="safety-boundary">
               <ShieldCheck size={18} />
@@ -128,7 +145,7 @@ export function TeacherConsole({
                   <div className="timeline-heading"><span>Session 3</span><small>Current attempt</small></div>
                   <h3>{demo.activity.title} · {demo.activity.prompt}</h3>
                   <dl>
-                    <div><dt>Support level</dt><dd>{supportLabel(supportRequest)}</dd></div>
+                    <div><dt>Support level</dt><dd>{currentSupportLabel}</dd></div>
                     <div><dt>Mastery evidence</dt><dd>{currentEvidence}</dd></div>
                   </dl>
                   <div className="evidence-facts" aria-label="Evidence safeguards">
@@ -136,6 +153,17 @@ export function TeacherConsole({
                     <span><Check size={13} /> No learner scoring</span>
                     <span><Check size={13} /> No job-fit judgment</span>
                   </div>
+                  {supportPacket ? (
+                    <section className="model-support-note" aria-label="GPT-5.6 support draft">
+                      <span>Support draft for teacher review</span>
+                      <p>{supportPacket.teacherSummary}</p>
+                      <small>
+                        {supportPacket.generation.mode === 'live'
+                          ? 'Live GPT-5.6 support packet; mastery remains deterministic and teacher confirmed.'
+                          : 'Safe fallback support packet; mastery remains deterministic and teacher confirmed.'}
+                      </small>
+                    </section>
+                  ) : null}
                 </article>
               </li>
               <li className="timeline-item is-future">
@@ -151,16 +179,22 @@ export function TeacherConsole({
             <footer className="teacher-confirmation">
               <div>
                 <span><Flag size={17} /> Teacher-only checkpoint</span>
-                <p>Confirm that this timeline accurately reflects the visible synthetic activity evidence.</p>
+                <p>
+                  {confirmed
+                    ? 'The teacher confirmed the qualifying synthetic evidence.'
+                    : teacherReviewReady
+                      ? 'Confirm the two qualifying attempts from different sessions.'
+                      : 'A qualifying two-session evidence pattern is required before confirmation.'}
+                </p>
               </div>
               <button
                 className={confirmed ? 'primary-action confirmed' : 'primary-action'}
                 type="button"
                 onClick={onConfirm}
-                disabled={confirmed}
+                disabled={confirmed || !teacherReviewReady}
                 data-testid="confirm-evidence"
               >
-                <FileCheck2 size={18} /> {confirmed ? 'Evidence confirmed' : 'Confirm visible evidence'}
+                <FileCheck2 size={18} /> {confirmed ? 'Evidence confirmed' : 'Confirm qualifying evidence'}
               </button>
             </footer>
           </section>

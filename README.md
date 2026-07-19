@@ -1,37 +1,39 @@
-# Eiden Pathways
+# Work, My Way
 
-**A teacher-guided career exploration prototype that adapts a work scene only when a learner explicitly asks for support.**
+**A synthetic, educator-evaluation prototype for IEP-linked vocational mastery learning.**
 
-Eiden Pathways is an English-first OpenAI Build Week prototype built from the product principles of an earlier Korean vocational exploration concept. It demonstrates one complete, safety-bounded flow:
+Work, My Way is an OpenAI Build Week education prototype. It is designed around a narrow but important question: can vocational exploration be repeated in small, observable steps until a learner has enough evidence to continue—with the teacher, not the model, making the final decision?
 
-1. A learner explores a realistic work moment.
-2. The learner explicitly selects **Show me**, **I need help**, or **Take a break**.
-3. GPT-5.6 returns a short structured support packet.
-4. A teacher reviews, edits, and confirms the draft before it becomes a learning note.
+The public demo is for adult educators and judges only. It contains no real learner, school, diagnosis, assessment, or IEP data.
 
-The system does **not** score students, rank careers, infer job suitability, diagnose needs, or make placement decisions.
+## What the demo proves
+
+1. A synthetic learner practises one **Library Assistant** routine across two earlier sessions and a current third session.
+2. The visible goal is linked to a synthetic IEP-style observable criterion: complete both steps with no more than visual choices.
+3. **Show me**, **Help**, and **Break** send a minimal, de-identified context to GPT-5.6 for a bounded support message. The deterministic task and mastery rule stay outside the model.
+4. Each current response is recorded locally with session, observable outcome, support level, and selected choice.
+5. The deterministic rule requires the two most recent qualifying responses to be from different sessions and at or below visual-choice support.
+6. Only then can an educator confirm the visible evidence. GPT-5.6 never decides or claims mastery.
+7. Interview practice is visibly locked as a future phase; it is not implemented in this MVP.
 
 ## Why GPT-5.6 is necessary
 
-The model is not used as a chat decoration. It transforms the current scene and the learner’s explicit support action into two synchronized outputs:
+GPT-5.6 is not a tutor, scorer, placement tool, or mastery engine. On an explicit support request, the server asks it for one short, structured support packet that includes a student-facing message and a factual teacher draft. The request contains only the synthetic work scene plus a derived goal and support context—never an IEP document or learner identifier.
 
-- a plain-English student adaptation with two or three concrete choices;
-- a factual teacher draft with an evidence boundary and required next step.
-
-The server requests strict structured JSON from `gpt-5.6-luna`, validates it with Zod, rejects evaluative language, and falls back to a deterministic safe packet on any failure. The API key remains server-side.
+The Responses API boundary uses Structured Outputs, Zod validation, prohibited-language checks, server-side credentials, and an honest safe fallback. Deterministic application code owns the record, the mastery calculation, and the teacher checkpoint.
 
 ## Run locally
 
-Requirements: Node.js 20+ and an OpenAI API key for live generation.
+Requirements: Node.js 20+; an OpenAI API key is required only to demonstrate a live model response.
 
 ```bash
 npm install
 cp .env.example .env.local
-# Add OPENAI_API_KEY to .env.local
+# Add OPENAI_API_KEY to .env.local for live GPT-5.6 support
 npm run dev
 ```
 
-Without an API key, the interface remains fully testable and displays **Safe demo response** rather than pretending that a model call occurred.
+Without a key, the interaction remains functional and clearly labels the safe fallback rather than implying a model call occurred.
 
 ## Verify
 
@@ -40,45 +42,29 @@ npx playwright install chromium
 npm run verify
 ```
 
-The verification suite checks:
+The suite verifies the versioned local synthetic store, corruption recovery, deterministic mastery conditions, teacher confirmation, schema and safety guards, build, client-secret scan, persistence/reset, desktop interaction, and mobile layout.
 
-- English-only source text;
-- the structured support and safety contract;
-- live-client, missing-key, and prohibited-language server paths;
-- production build and client secret leakage;
-- the student request, teacher confirmation, desktop, and mobile browser flows.
+## Privacy and product boundary
 
-## Project map
+The demo stores synthetic records in the current browser's `localStorage` only. There is no sign-in, cloud database, student account, or server endpoint for learner records. `Reset synthetic demo` clears the local synthetic state.
 
-- `src/` — English student and teacher experiences
-- `server/` — Responses API service and HTTP boundary
-- `api/` — Vercel serverless entry point
-- `shared/` — request/response schemas and deterministic fallback
-- `docs/` — demo, product safety, submission, and design evidence
-- `public/assets/` — selected, optimized pre-existing project visuals
+This is not a production student service. A real pilot would require school and family approval, role-based access, data retention/deletion controls, encryption, accessibility research with target learners, educator training, and jurisdiction-specific privacy review. See [PRIVACY_AND_SAFETY.md](PRIVACY_AND_SAFETY.md).
 
 ## Build Week transparency
 
-The earlier Korean prototype remains untouched outside this repository. This repository contains the new English implementation, GPT-5.6 integration, safety contract, tests, documentation, and deployment surface created for Build Week. A small set of pre-existing original visual assets and the Eiden character were selectively reused and are declared in [BUILD_WEEK_DELTA.md](BUILD_WEEK_DELTA.md) and [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md).
+This repository is the new Build Week implementation. It has dated commits for the versioned mastery store, GPT-5.6 support boundary, teacher checkpoint, generated visual, tests, and submission evidence. The earlier Korean product concept remains outside this repository. [BUILD_WEEK_DELTA.md](BUILD_WEEK_DELTA.md) separates prior context from new work; [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md) records visual provenance.
 
-## How Codex accelerated the build
+Codex was the primary working environment for product analysis, architecture, generated visual production, implementation, parallel worktree integration, safety testing, browser testing, and release evidence. The core build session is recorded in [docs/CODEX_BUILD_LOG.md](docs/CODEX_BUILD_LOG.md); add its `/feedback` Session ID before submitting.
 
-Codex was used as the primary product and engineering workspace to:
+## Project map
 
-- audit the earlier prototype and separate reusable product principles from structural debt;
-- compare rebuild, extension, and hybrid repository strategies;
-- narrow the demo to one judgeable student-to-teacher vertical slice;
-- create and compare English design concepts against real browser renders;
-- implement the React client, Responses API boundary, structured safety contract, and fallback path;
-- generate adversarial tests for invalid input, missing credentials, and prohibited model language;
-- produce the Build Week delta, asset ledger, safety documentation, demo script, and submission checklist.
-
-The key decision was to create a clean English-first repository while declaring selected pre-existing visuals. This made the Build Week contribution auditable and let the GPT-5.6 interaction shape the architecture instead of being added to a mock-first monolith.
-
-## Privacy and safety
-
-The demo uses synthetic records only. Raw learner scene text is not written to logs. Production use with students would require school approval, data governance, access control, retention rules, accessibility testing, and human oversight beyond this prototype. See [PRIVACY_AND_SAFETY.md](PRIVACY_AND_SAFETY.md).
+- `src/data/` — versioned local synthetic record store and recovery
+- `src/domain/` — deterministic mastery rule
+- `src/` — student activity and teacher evidence views
+- `server/` and `api/` — stateless OpenAI Responses API boundary
+- `shared/` — support schemas, safety checks, and fallback
+- `docs/` — recording script, Build Week evidence, and submission fact sheet
 
 ## License
 
-Source code is available under the MIT License. Visual assets in `public/assets/` and `docs/design/` are excluded from that license; see [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md).
+Source code is available under the MIT License. Visual assets are excluded; see [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md).

@@ -51,6 +51,16 @@ describe('synthetic demo store', () => {
   it('resets recorded decisions to the synthetic seed', () => {
     const store = createDemoStore(memoryStorage());
     const state = store.getSnapshot();
+    store.recordAttempt({
+      id: 'attempt-3',
+      goalId: state.goals[0].id,
+      sessionId: state.sessions[2].id,
+      occurredAt: '2026-07-17T09:10:00.000Z',
+      criterionMet: true,
+      supportLevel: 'visual_choice',
+      selectedChoiceId: 'return-cart',
+      observation: 'completed_observable_step'
+    });
     store.recordTeacherDecision({
       id: 'decision-1',
       goalId: state.goals[0].id,
@@ -61,6 +71,6 @@ describe('synthetic demo store', () => {
     });
     expect(store.getMastery().status).toBe('mastered');
     expect(store.reset().teacherDecisions).toHaveLength(1);
-    expect(store.getMastery().status).toBe('ready_for_teacher_review');
+    expect(store.getMastery().status).toBe('in_progress');
   });
 });

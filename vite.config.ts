@@ -4,7 +4,7 @@ import { supportHttpResponse } from './server/http';
 
 function supportApiPlugin(env: Record<string, string>): Plugin {
   return {
-    name: 'eiden-support-api',
+    name: 'work-my-way-support-api',
     configureServer(server) {
       server.middlewares.use('/api/support', async (request, response) => {
         response.setHeader('Content-Type', 'application/json; charset=utf-8');

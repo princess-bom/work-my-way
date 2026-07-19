@@ -1,38 +1,32 @@
 # Build Week Delta
 
-This file separates pre-existing project context from work created for OpenAI Build Week.
+This file separates the pre-existing Korean product context from the implementation created for OpenAI Build Week after the submission window opened.
 
-## Pre-existing context reused
+## Pre-existing context
 
-- The product principle: career exploration should be concrete, paced, and teacher-guided.
-- The Eiden fox guide and selected original job-scene illustrations.
-- The warm orange, deep teal, blue, and paper-like visual language.
-- Learner support actions such as hearing content again, seeing a visual, asking for help, and taking a break.
-
-These elements came from the earlier Korean prototype and are not presented as new Build Week work.
+- The problem framing: vocational exploration should be concrete, paced, and teacher-guided for learners who benefit from repeatable instruction.
+- The founder's observation of special-school vocational education and the importance of individualised goals.
+- Early ideas about AAC-friendly support, teacher review, privacy, and eventual interview practice after vocational exploration is established.
+- Selected original visual assets retained in the repository but not presented as new Build Week work.
 
 ## New Build Week work
 
-- A separate English-first React and TypeScript application.
-- A new student scene focused on one judgeable interaction.
-- A new teacher review and confirmation workspace.
-- A server-only OpenAI Responses API integration using GPT-5.6.
-- A strict structured support-packet schema shared across model, server, and client.
-- Safety rules that prohibit scoring, ranking, suitability judgments, diagnosis, and unsupported inference.
-- Deterministic and visibly labeled fallback behavior.
-- Automated service, safety, build, secret, responsive, and browser-flow verification.
-- English README, safety notes, demo script, asset ledger, and submission checklist.
-- New design concepts created specifically for the Build Week implementation.
+- A clean English React and TypeScript implementation in this public repository.
+- A focused **Work, My Way** student and teacher experience for one synthetic Library Assistant routine.
+- A versioned device-local synthetic store with profiles, one IEP-linked observable goal, two earlier sessions, a current third session, append-only attempts, teacher decisions, reset, and corruption recovery.
+- A deterministic mastery rule: two most recent qualifying responses, from distinct sessions, at or below visual-choice support, followed by teacher confirmation.
+- A GPT-5.6 Responses API support boundary that receives only a de-identified goal/support context and never decides mastery.
+- Structured Outputs, Zod validation, prohibited-language handling, server-side credentials, and a visibly honest fallback.
+- A new Library Assistant visual generated with Codex Image Generation specifically for this Build Week implementation.
+- Unit, service, build, secret, browser-flow, persistence/reset, desktop, and mobile verification.
+- Submission evidence, safety notes, demo recording script, and Codex build log.
 
-## Deliberately not carried forward
+## Deliberately not implemented
 
-- The monolithic Korean application shell and Korean enum/state model.
-- Mock AI responses that could be mistaken for a live model result.
-- Decorative Three.js overlays and a broad seven-screen journey.
-- Screenshot-presence tests that did not compare actual UI behavior.
-- External mockup concepts with unclear derivative-design provenance.
-- The complete 62 MB source asset collection.
+- Interview practice. It belongs after vocational exploration mastery and is displayed only as a locked future phase.
+- Real learners, real IEPs, schools, sign-in, cloud records, or automated educational decisions.
+- Career ranking, suitability, diagnosis, scoring, or placement recommendations.
 
-## Why a separate repository
+## Audit trail
 
-A separate repository makes the new work auditable, prevents disruption to the original project, enables an English information architecture, and gives the GPT-5.6 flow a clean server boundary. Selective asset reuse preserves product continuity without importing the old prototype’s structural debt.
+The public Git history contains the Build Week commits. The primary Codex session will be attached through Devpost `/feedback` before submission. Judges should evaluate this repository's dated Build Week work, not the separate earlier Korean concept.

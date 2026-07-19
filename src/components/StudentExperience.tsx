@@ -6,6 +6,7 @@ import {
   Eye,
   HandHelping,
   LockKeyhole,
+  LoaderCircle,
   Pause,
   RotateCcw,
   Target
@@ -16,12 +17,15 @@ import {
   type MasteryDemoViewModel,
   type SupportRequest
 } from './masteryDemo';
+import type { SupportPacketResponse } from '../../shared/support-schema';
 
 type StudentExperienceProps = {
   demo: MasteryDemoViewModel;
   supportRequest: SupportRequest | null;
+  supportPacket: SupportPacketResponse | null;
+  loadingSupport: SupportRequest | null;
   selectedChoiceId: CanonicalChoiceId | null;
-  onSupport: (request: SupportRequest) => void;
+  onSupport: (request: SupportRequest) => void | Promise<void>;
   onSelectChoice: (choiceId: CanonicalChoiceId) => void;
   onOpenTeacher: () => void;
 };
@@ -35,6 +39,8 @@ const supportActions = [
 export function StudentExperience({
   demo,
   supportRequest,
+  supportPacket,
+  loadingSupport,
   selectedChoiceId,
   onSupport,
   onSelectChoice,
@@ -113,7 +119,7 @@ export function StudentExperience({
 
             <article className="mastery-activity">
               <div className="activity-visual">
-                <img src="/assets/library-diorama.avif" alt="Illustrated library return desk with a book cart and shelves" />
+                <img src="/assets/work-my-way-library-hero.png" alt="Illustrated library learning scene with returned books, a book cart, and shelves" />
                 <div className="activity-visual-label">
                   <BookOpen size={16} />
                   <span><strong>{demo.activity.title}</strong><small>Work scene practice</small></span>
@@ -131,13 +137,19 @@ export function StudentExperience({
                 <h1>{demo.activity.prompt}</h1>
 
                 {supportRequest ? (
-                  <div className={`support-response support-${supportRequest}`} role="status">
-                    <strong>
-                      {supportRequest === 'show' && 'Look at one choice at a time.'}
-                      {supportRequest === 'help' && 'Think about where books wait before they are sorted.'}
-                      {supportRequest === 'break' && 'Pause here. Your only step is to choose where the book goes first.'}
-                    </strong>
-                    <span>Your support request changes the presentation, not the learning goal.</span>
+                  <div className={`support-response support-${supportRequest}`} role="status" data-testid="support-response">
+                    {loadingSupport === supportRequest ? (
+                      <strong><LoaderCircle className="spin" size={15} /> Preparing one smaller next step…</strong>
+                    ) : (
+                      <>
+                        <strong>{supportPacket?.studentMessage ?? 'A safe support response is ready for this synthetic scene.'}</strong>
+                        <span>
+                          {supportPacket?.generation.mode === 'live'
+                            ? 'GPT-5.6 created this bounded support message. Your learning goal stays the same.'
+                            : 'A safe fallback supports this synthetic scene. Your learning goal stays the same.'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 ) : null}
 
@@ -150,6 +162,7 @@ export function StudentExperience({
                         type="button"
                         key={choice.id}
                         aria-pressed={isSelected}
+                        disabled={selectedChoiceId !== null && !isSelected}
                         onClick={() => onSelectChoice(choice.id)}
                         data-testid={`choice-${choice.id}`}
                       >
@@ -183,11 +196,12 @@ export function StudentExperience({
                   key={request}
                   className={supportRequest === request ? 'is-selected' : ''}
                   aria-pressed={supportRequest === request}
+                  disabled={loadingSupport !== null}
                   onClick={() => onSupport(request)}
                   data-testid={`support-${request}`}
                 >
-                  <Icon size={21} aria-hidden="true" />
-                  <span><strong>{label}</strong><small>{description}</small></span>
+                  {loadingSupport === request ? <LoaderCircle className="spin" size={21} aria-hidden="true" /> : <Icon size={21} aria-hidden="true" />}
+                  <span><strong>{loadingSupport === request ? 'Preparing…' : label}</strong><small>{description}</small></span>
                   {supportRequest === request ? <Check size={17} aria-hidden="true" /> : null}
                 </button>
               ))}

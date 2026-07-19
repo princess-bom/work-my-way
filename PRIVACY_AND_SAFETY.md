@@ -1,35 +1,35 @@
 # Privacy and Safety Boundary
 
-## What the prototype does
+## This deployment
 
-- Responds only after an explicit learner support action.
-- Uses the current job title, scene, description, question, and selected support action.
-- Produces a short student adaptation and a factual teacher draft.
-- Requires teacher review before a note is confirmed.
-- Labels deterministic fallback output so it cannot be confused with a live model call.
+- Is a synthetic demo for adult educator and judge evaluation.
+- Uses a fictional learner, educator, goal, sessions, choices, attempts, and decisions.
+- Stores the synthetic record only in the current browser's `localStorage`; it is not synchronised or sent to an application database.
+- Provides `Reset synthetic demo` to return local state to the seeded synthetic record.
+- Does not accept real student data, sign users in, or operate as a student-facing production service.
 
-## What the prototype must never do
+## What GPT-5.6 receives and does
 
-- Score or rank a learner.
-- Select, reject, or recommend a career for a learner.
-- Infer aptitude, ability, disability, emotion, preference, or diagnosis.
-- Turn hesitation, support use, or a wrong choice into a negative trait.
-- Publish a model-generated learning note without educator review.
+- Receives only a synthetic work scene, an explicit support action, a derived target skill and observable criterion, and a derived support/outcome context.
+- Never receives an IEP document, learner identifier, school name, diagnosis, or full historical record.
+- Produces one bounded student support message and one factual teacher draft through Structured Outputs.
+- Is prevented by prompt, schema, validation, and fallback from scoring, diagnosing, ranking, recommending a career, or claiming mastery.
+
+## What deterministic application code does
+
+- Records the current synthetic response as an append-only attempt with session, support level, selected choice, and observable result.
+- Requires the two latest qualifying attempts to be from different sessions and at or below visual-choice support before teacher review becomes available.
+- Requires an educator's explicit confirmation before the record becomes `mastered`.
+- Does not infer an ability, preference, job fit, or diagnosis from the record.
 
 ## Technical controls
 
-- A strict JSON schema limits model output shape.
-- Zod validates both requests and responses.
-- A prohibited-language filter rejects common evaluative and diagnostic terms.
-- All three safety flags must be literal `true`.
-- API credentials are loaded only by the server runtime.
-- Logs contain action type, generation mode, model name, and latency—not raw learner input.
-- Missing keys, malformed output, prohibited language, and model failures use a deterministic safe response.
-
-## Demo data
-
-All names and records are synthetic. No student, school, disability, or assessment data is included.
+- The support API is POST-only and uses `Cache-Control: no-store`.
+- OpenAI credentials remain in server-side environment variables and must never use a `VITE_` prefix.
+- OpenAI storage is disabled for the support request.
+- Zod validates request and response payloads; banned evaluative and mastery-claim language triggers a deterministic safe fallback.
+- Operational logs limit themselves to action, mode, model, and latency rather than raw prompt content.
 
 ## Before any real student pilot
 
-This prototype is not deployment-ready for students. A real pilot requires consent and school approval, identity and role controls, data minimization, encryption, retention/deletion policy, audit logs, incident response, accessibility testing with target users, model evaluation across reading levels, teacher training, and legal/privacy review for the relevant jurisdiction.
+Do not use this prototype with real students or records. A real pilot requires school/family approval, an age-appropriate consent basis, identity and role controls, encryption, retention/deletion policy, accessibility testing with target learners, educator training, model evaluation, incident response, and jurisdiction-specific legal/privacy review.

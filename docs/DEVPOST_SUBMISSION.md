@@ -1,77 +1,65 @@
-# Devpost Submission Draft
+# Devpost Submission Fact Sheet
 
-## Project name
+Devpost asks entrants to write project descriptions in their own voice. This file is therefore a factual evidence sheet and founder-voice outline, not copy to paste unchanged.
 
-Eiden Pathways
+## Submission fields
 
-## Tagline
+| Field | Evidence to enter |
+| --- | --- |
+| Project name | Work, My Way |
+| Tagline | IEP-linked vocational mastery learning with teacher-confirmed evidence |
+| Track | Education |
+| Public repository | `https://github.com/princess-bom/work-my-way` |
+| Demo URL | Add Vercel production URL after deployment |
+| Video | Add public English YouTube URL, under three minutes |
+| Codex feedback | Add the primary core-functionality `/feedback` Session ID |
+| Built with | Codex; GPT-5.6; OpenAI Responses API; Structured Outputs; React; TypeScript; Vite; Zod; Vitest; Playwright; Vercel |
 
-Teacher-guided career exploration that adapts only when a learner asks.
+## Founder-voice prompts
 
-## Track
+Write these answers personally, keeping only claims the demo visibly proves.
 
-Education
+### Inspiration
 
-## Short description
+- You are a parent raising a child with a developmental disability.
+- You changed careers, studied applied behaviour analysis, and entered Sogang University's AI-convergent education design graduate programme to build tools with broader benefit.
+- You observed in special-school vocational education that early, systematic vocational exploration needs repeated mastery practice, individualised goals, and records that help teachers see progress.
 
-Eiden Pathways helps learners explore concrete work moments at their own pace. When a learner explicitly selects Show me, I need help, or Take a break, GPT-5.6 creates a short structured support packet with accessible choices and a factual teacher draft. The teacher reviews, edits, and confirms the note. The system never scores students, ranks careers, diagnoses needs, or infers job suitability.
+### What it does
 
-## Inspiration
+- Shows one synthetic Library Assistant routine across two earlier sessions and a current third session.
+- Links that practice to one synthetic IEP-style observable goal.
+- Lets a learner explicitly ask for Show me, Help, or Break; GPT-5.6 returns bounded support while the task itself stays deterministic.
+- Records the current response locally with session, support level, and observable result.
+- Unlocks a teacher confirmation only after two qualifying attempts across different sessions at or below visual-choice support.
+- Shows interview practice as a future locked phase, not an MVP feature.
 
-South Korea has curriculum frameworks, public resources, and vocational education programs for students with disabilities. But policy is not the same as a learning experience.
+### How it was built
 
-In the classrooms that inspired Eiden Pathways, learners did not always receive vocational exploration in a form they could consistently access: one concrete work scene, enough time to respond, visual or AAC-based choices, a safe way to ask for help, and a teacher who could see which support made the next step possible.
+- Codex was the primary workspace for product analysis, parallel worktrees, implementation, test design, browser verification, documentation, and one generated scene visual.
+- GPT-5.6 is called only through a server-side Responses API boundary using Structured Outputs and Zod validation.
+- The model receives a de-identified goal/support context; the browser holds only synthetic local records.
+- No OpenAI output can declare mastery. A deterministic rule plus a teacher decision owns that state.
 
-This is the implementation gap we wanted to address. Many digital career tools still present a fixed amount of text, a fixed interaction pattern, or a final recommendation. That structure can turn support needs into friction—and can make AI feel like an evaluator. We wanted to explore a different role for AI: adapt one moment when asked, show the evidence boundary, and preserve educator judgment.
+### Challenges and accomplishments
 
-## What it does
+- The design challenge was preventing AI support from becoming AI evaluation.
+- The implementation demonstrates a real split between generated scaffolding and deterministic/teacher-governed learning evidence.
+- The record is versioned, resettable, recoverable from corruption, and stored locally for the synthetic demo.
+- Tests cover the mastery rule, safe fallback, build, client-secret scan, persistence/reset, desktop flow, and mobile layout.
 
-The demo begins with one realistic Library Assistant scene. A learner can hear the question, ask to see it differently, request help, or take a break. An explicit support action triggers GPT-5.6, which returns:
+### Safety disclosure
 
-- one short student-facing sentence;
-- two or three concrete choices;
-- a support type and factual observed signal;
-- a teacher summary, next step, and evidence statement;
-- required safety flags for no scoring, no diagnosis, and teacher review.
+- Synthetic adult-evaluator demo only; no real student or IEP data.
+- No scoring, diagnosis, job fit, ranking, placement, or career recommendation.
+- Any real pilot requires governance, consent, access controls, retention/deletion, accessibility research, and legal/privacy review.
 
-The same packet appears in a teacher review queue. The educator can inspect the evidence, edit the draft, and confirm the learning note.
+## Devpost compliance checklist
 
-## How we built it
-
-We used Codex as the primary workspace for product strategy, design, implementation, and verification. Codex audited an earlier Korean prototype, helped distinguish pre-existing assets from new work, and challenged whether translation or a clean rebuild would produce the strongest Build Week entry. We chose a separate English-first React and TypeScript repository with a narrow GPT-5.6 vertical slice.
-
-The server uses the OpenAI Responses API with `gpt-5.6-luna` and strict Structured Outputs. Shared Zod schemas validate both sides of the boundary. Any missing key, invalid response, prohibited evaluative language, or model failure produces a deterministic response labeled Safe demo response. API credentials never enter the browser bundle.
-
-## Challenges
-
-The hardest problem was not generating more content—it was defining what the model must not decide. Career exploration for learners can easily drift into scoring, aptitude inference, or automated recommendations. We reduced the model’s job to a bounded adaptation contract and made the learner’s explicit action the only behavioral evidence.
-
-We also had to preserve the identity of an existing project without presenting old work as new. The repository includes a Build Week delta and asset ledger, and the earlier application remains untouched.
-
-## Accomplishments
-
-- A complete learner request → GPT-5.6 support → teacher confirmation flow.
-- Honest live, fallback, and illustrative generation labels.
-- A structured safety contract that excludes assessment and diagnosis.
-- Synthetic data and teacher-in-the-loop review by design.
-- Automated English, schema, server, build, secret, desktop, and mobile checks.
-- A focused English experience that retains the strongest original visual assets without inheriting the earlier architecture.
-
-## What we learned
-
-The most useful educational AI behavior was also the narrowest. Asking GPT-5.6 to produce synchronized student and teacher views from one explicit request created more value than adding an open-ended chatbot. Structured output made the safety boundary testable rather than aspirational.
-
-## What’s next
-
-Next steps are co-design sessions with special-education teachers, accessibility testing with target learners, more job scenes, configurable reading levels approved by educators, multilingual support, role-based access, and a formal privacy and evaluation plan before any real-student pilot.
-
-## Technologies
-
-Codex, GPT-5.6 Luna, OpenAI Responses API, Structured Outputs, React, TypeScript, Vite, Zod, Vitest, Playwright, Vercel Functions
-
-## Links to complete
-
-- Live demo: `[ADD URL]`
-- Public repository: `[ADD URL]`
-- YouTube demo: `[ADD URL]`
-- Codex `/feedback` Session ID: `[ADD ID]`
+- [ ] Upload only after the Vercel production demo is working consistently.
+- [ ] Record a public English video under three minutes with audible Codex and GPT-5.6 explanation.
+- [ ] Ensure the repository is public and the MIT license is present.
+- [ ] Add dated-commit/Codex evidence for the Build Week delta.
+- [ ] Add the `/feedback` Session ID from this primary build task.
+- [ ] Confirm all team members are accepted in Devpost before the deadline.
+- [ ] Write the final Devpost description in the founder's own voice.

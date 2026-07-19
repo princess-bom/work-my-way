@@ -1,3 +1,6 @@
+import type { DemoState } from '../data/demo-store';
+import type { SupportLevel } from '../domain/mastery';
+
 export type SupportRequest = 'show' | 'help' | 'break';
 
 export type CanonicalChoiceId = 'return-cart' | 'shelf-now' | 'front-desk';
@@ -46,7 +49,7 @@ export const masteryDemo: MasteryDemoViewModel = {
     initials: 'AM',
     notice: 'Synthetic learner for adult evaluator review only'
   },
-  learningGoal: 'I can use evidence from a work scene to choose a next step and explain why.',
+  learningGoal: 'Complete both observable steps with no more than visual choices.',
   activity: {
     title: 'Library Assistant',
     context: 'A visitor has returned a book at the library desk.',
@@ -98,6 +101,41 @@ export const masteryDemo: MasteryDemoViewModel = {
     description: 'Future phase · not part of this prototype'
   }
 };
+
+export function supportLevelLabel(level: SupportLevel): string {
+  if (level === 'none') return 'Independent response';
+  if (level === 'visual_choice') return 'Visual choices';
+  if (level === 'verbal_prompt') return 'One verbal prompt';
+  return 'Direct model';
+}
+
+/** Maps only synthetic local records into presentation copy. It never derives a
+ * learner score or asks a model to interpret the record. */
+export function createMasteryDemoView(state: DemoState): MasteryDemoViewModel {
+  const learner = state.profiles.find((profile) => profile.role === 'learner')!;
+  const goal = state.goals[0];
+  const previousSessions = state.sessions.slice(0, 2).map((session, index) => {
+    const attempt = state.attempts.find((item) => item.sessionId === session.id);
+    return {
+      id: session.id,
+      label: `Session ${index + 1}`,
+      dateLabel: index === 0 ? 'Earlier exploration' : 'Previous attempt',
+      activity: session.activityLabel,
+      supportLevel: attempt ? supportLevelLabel(attempt.supportLevel) : 'No attempt recorded',
+      evidence: attempt?.criterionMet
+        ? 'Completed the visible library routine step.'
+        : 'A different step was selected; instruction continues.',
+      status: 'completed' as const
+    };
+  });
+
+  return {
+    ...masteryDemo,
+    learner: { ...masteryDemo.learner, name: learner.displayName },
+    learningGoal: goal.observableCriterion,
+    previousSessions
+  };
+}
 
 export function feedbackForChoice(choice: CanonicalChoice): string {
   if (choice.isCanonical) {

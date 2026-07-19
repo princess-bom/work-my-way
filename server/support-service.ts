@@ -9,7 +9,7 @@ import {
   type SupportRequest
 } from '../shared/support-schema';
 
-export const SUPPORT_SYSTEM_PROMPT = `You are the adaptation layer for Eiden Pathways, a teacher-guided career exploration app for students who benefit from additional communication and learning support.
+export const SUPPORT_SYSTEM_PROMPT = `You are the adaptation layer for Work, My Way, a teacher-guided vocational mastery-learning app for students who benefit from additional communication and learning support.
 
 Your role is narrow: respond only to an explicit learner request for visual support, help, or a break. Produce one short student-facing adaptation and one factual teacher draft.
 

@@ -1,37 +1,43 @@
-# Demo Script — Target 2:20
+# Demo Script — Target 2:35
 
-## 0:00–0:18 — Problem
+Use this as a recording outline, then speak it in your own natural voice. The public video must be in English, under three minutes, and use the deployed Vercel URL with a visibly live GPT-5.6 response.
 
-“Career exploration often asks learners to adapt to a fixed interface. Eiden Pathways reverses that relationship: support appears only when a learner explicitly asks for it, and a teacher stays in control.”
+## 0:00–0:25 — Founder context and problem
 
-## 0:18–0:40 — Scene
+“I am raising a child with a developmental disability. I left my former career, studied applied behaviour analysis, and entered a master's program in AI-convergent education design because I wanted to build tools that could help more families. In special-school vocational education, I saw that career exploration needs more than one exposure. Learners need repetition, individual goals, and records a teacher can trust.”
 
-“Here, a student is trying one concrete moment from the role of Library Assistant: where should a returned book go first? The page is intentionally calm, visual, and paced.”
+## 0:25–0:55 — The mastery loop
 
-## 0:40–1:12 — GPT-5.6 support
+Show the student screen.
 
-Select **Show me**.
+“This is Work, My Way. The demo uses only synthetic data for adult evaluation. It shows one Library Assistant routine across two earlier sessions and a current third session. The goal is observable: complete both steps with no more than visual choices. This is not a score or a career recommendation.”
 
-“This is the core GPT-5.6 interaction. The app sends only this scene and the explicit request. GPT-5.6 returns a strictly structured support packet: one short sentence, two concrete visual choices, and a factual teacher draft. It is not allowed to score, diagnose, or infer career suitability.”
+## 0:55–1:25 — Live GPT-5.6 support
 
-Point to the **Adapted with gpt-5.6-luna** badge and the two choices.
+Click **Show me** and show the generation state.
 
-## 1:12–1:55 — Teacher review
+“When the learner explicitly asks for support, GPT-5.6 creates one short, structured support message. The request contains the scene and a de-identified goal/support context, not an IEP or student identity. GPT-5.6 makes the presentation smaller and clearer; it does not decide whether the learner has mastered the skill.”
 
-Open **Teacher view**.
+## 1:25–1:55 — Evidence and teacher decision
 
-“The same structured packet arrives in a teacher review queue. The evidence boundary says exactly what happened: the learner selected Show me in this scene. The teacher can edit the wording and remains the final reviewer.”
+Choose **Place it on the return cart**, then open **Teacher timeline**.
 
-Select **Confirm learning note**.
+“The app records this one observable synthetic response locally. The deterministic rule checks the two latest qualifying attempts across different sessions, at no more than visual-choice support. Only after that pattern exists does the teacher checkpoint unlock. The educator—not the model—confirms the visible evidence.”
 
-## 1:55–2:20 — Value and close
+## 1:55–2:15 — Safety and future phase
 
-“Eiden Pathways uses GPT-5.6 for a narrow job it does well: adapting one moment into accessible choices while preserving human judgment. The Build Week version is English-first, testable, transparent about reused assets, and designed for education—not automated assessment.”
+Point to the support draft and locked Interview practice stage.
 
-## Recording notes
+“The model is blocked from scoring, diagnosing, ranking jobs, or claiming mastery. Interview practice is intentionally locked. It comes later, after a learner has built vocational exploration mastery.”
 
-- Use a deployed build with a valid server-side API key.
-- Confirm the badge says **Adapted with gpt-5.6-luna** before recording.
-- Use synthetic data only.
-- Keep the browser at 1440 × 900 or larger.
-- Record narration and cursor together; avoid silent title cards.
+## 2:15–2:35 — Close
+
+“Codex helped me turn this educational theory into a tested prototype: the data model, the safety boundary, the interface, generated visual, and verification. Work, My Way is a small MVP, but it makes the learning loop visible: repeated practice, individualised support, structured evidence, and teacher judgment.”
+
+## Recording checklist
+
+- Use the Vercel production URL, not a local mock.
+- Confirm the support message identifies live GPT-5.6 rather than a safe fallback.
+- Keep the synthetic/demo notice visible at least once.
+- Do not show any real learner, IEP, school record, API key, or private browser tab.
+- Record narration and cursor together; avoid silent slides.

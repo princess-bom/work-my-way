@@ -35,6 +35,7 @@ export const AttemptSchema = z.object({
   occurredAt: z.string().datetime(),
   criterionMet: z.boolean(),
   supportLevel: z.enum(SUPPORT_LEVELS),
+  selectedChoiceId: z.enum(['return-cart', 'shelf-now', 'front-desk']).optional(),
   observation: z.enum(['completed_observable_step', 'step_not_yet_completed'])
 });
 
@@ -82,12 +83,11 @@ const INITIAL_DEMO_STATE: DemoState = {
   sessions: [
     { id: 'session-library-1', learnerProfileId: 'profile-learner-alex', startedAt: '2026-07-15T09:00:00.000Z', activityLabel: 'Library return cart' },
     { id: 'session-library-2', learnerProfileId: 'profile-learner-alex', startedAt: '2026-07-16T09:00:00.000Z', activityLabel: 'Library shelf labels' },
-    { id: 'session-cafe-1', learnerProfileId: 'profile-learner-alex', startedAt: '2026-07-17T09:00:00.000Z', activityLabel: 'Cafe table setup' }
+    { id: 'session-library-3', learnerProfileId: 'profile-learner-alex', startedAt: '2026-07-17T09:00:00.000Z', activityLabel: 'Library return sorting' }
   ],
   attempts: [
-    { id: 'attempt-1', goalId: 'goal-two-step-routine', sessionId: 'session-library-1', occurredAt: '2026-07-15T09:10:00.000Z', criterionMet: false, supportLevel: 'verbal_prompt', observation: 'step_not_yet_completed' },
-    { id: 'attempt-2', goalId: 'goal-two-step-routine', sessionId: 'session-library-2', occurredAt: '2026-07-16T09:10:00.000Z', criterionMet: true, supportLevel: 'visual_choice', observation: 'completed_observable_step' },
-    { id: 'attempt-3', goalId: 'goal-two-step-routine', sessionId: 'session-cafe-1', occurredAt: '2026-07-17T09:10:00.000Z', criterionMet: true, supportLevel: 'none', observation: 'completed_observable_step' }
+    { id: 'attempt-1', goalId: 'goal-two-step-routine', sessionId: 'session-library-1', occurredAt: '2026-07-15T09:10:00.000Z', criterionMet: false, supportLevel: 'verbal_prompt', selectedChoiceId: 'shelf-now', observation: 'step_not_yet_completed' },
+    { id: 'attempt-2', goalId: 'goal-two-step-routine', sessionId: 'session-library-2', occurredAt: '2026-07-16T09:10:00.000Z', criterionMet: true, supportLevel: 'visual_choice', selectedChoiceId: 'return-cart', observation: 'completed_observable_step' }
   ],
   teacherDecisions: [{
     id: 'decision-continue-1',
