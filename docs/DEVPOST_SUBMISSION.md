@@ -12,7 +12,7 @@ Devpost asks entrants to write descriptions in their own voice. This is a factua
 | Public repository | `https://github.com/princess-bom/work-my-way` |
 | Demo URL | `https://work-my-way.vercel.app` |
 | Video | Add a public English YouTube URL under three minutes |
-| Codex feedback | Add the primary core-functionality `/feedback` Session ID |
+| Codex feedback | `019f78a1-51dc-7b12-856f-d0adae416bdc` |
 | Built with | Codex; GPT-5.6 Luna; Responses API; Structured Outputs; GPT-Realtime-2.1 mini; WebRTC; React; TypeScript; PostgreSQL; Zod; Vitest; Vercel |
 
 ## Founder-voice prompts
@@ -63,6 +63,6 @@ Devpost asks entrants to write descriptions in their own voice. This is a factua
 - [ ] Redeploy and verify a live GPT-5.6 support response, Realtime session creation, PostgreSQL status, reset, and teacher confirmation.
 - [ ] Record a public English video under three minutes with audible Codex and model-role explanation.
 - [ ] Keep the repository public and preserve the Build Week delta and asset provenance.
-- [ ] Add the `/feedback` Session ID from this primary build task.
+- [x] Record the `/feedback` Session ID from this primary build task.
 - [ ] Confirm team and submitter fields personally in Devpost.
 - [ ] Write the final project description in the founder's own voice.

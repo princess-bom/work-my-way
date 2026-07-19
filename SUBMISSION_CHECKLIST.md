@@ -25,8 +25,8 @@ Official deadline: **July 21, 2026 at 5:00 PM Pacific / July 22, 2026 at 9:00 AM
 - [x] Add deterministic, server, support, and Realtime tests
 - [ ] Capture current tablet, learning, teacher, and mobile artifacts from HTTPS
 - [ ] Complete the final design-fidelity ledger
-- [ ] Push the reviewed branch to the public GitHub repository
-- [ ] Add the primary Codex `/feedback` Session ID
+- [x] Push the reviewed branch to the public GitHub repository
+- [x] Record the primary Codex `/feedback` Session ID in the submission fact sheet
 
 ## Demo video, under three minutes
 

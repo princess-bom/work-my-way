@@ -7,7 +7,7 @@
 - Repository: `princess-bom/work-my-way`
 - Build branch: `feat/mvp-carousel-rebuild`
 - Base commit before rebuild: `e889b50c08ba023920be25cc897c1c1d590a6215`
-- Primary Codex `/feedback` Session ID: add before final Devpost submission.
+- Primary Codex `/feedback` Session ID: `019f78a1-51dc-7b12-856f-d0adae416bdc`
 
 ## Decisions and implementation evidence
 
@@ -25,7 +25,9 @@
 ## Fresh verification recorded in this task
 
 - TypeScript and Vite production build passed after the carousel, server, and Realtime changes.
-- Vitest passed with deterministic mastery, server persistence, teacher confirmation, support safety, and Realtime session tests.
+- Vitest passed 30 tests covering deterministic mastery, server persistence, teacher confirmation, support safety, and Realtime session configuration.
+- Vercel preview deployment `dpl_9rHKuhkeGrm9kLsT8nh3SYQDDpwk` reached `READY` at `https://work-my-de3ewuste-eddy-7195s-projects.vercel.app`.
+- Commit `04410f2` was pushed to the public `feat/mvp-carousel-rebuild` branch.
 - The in-app browser was selected first for visual QA, but enterprise policy blocked local `127.0.0.1`. No browser workaround was used; final visual QA is deferred to the HTTPS Vercel deployment.
 
 ## Submission evidence still required
@@ -34,6 +36,5 @@
 - Configure Vercel PostgreSQL and verify `서버에 저장됨` on the production URL.
 - Verify one live GPT-5.6 support response and one Realtime session on HTTPS.
 - Capture current tablet and mobile screenshots and complete the fidelity ledger.
-- Push the reviewed branch to the public repository.
 - Record the public English video under three minutes.
-- Add this session's `/feedback` ID to Devpost.
+- Add the recorded `/feedback` Session ID to the final Devpost form.
