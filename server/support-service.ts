@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { createFallbackResponse } from '../shared/fallback';
+import { createFallbackResponse } from '../shared/fallback.js';
 import {
   packetHasBannedLanguage,
   SUPPORT_PACKET_JSON_SCHEMA,
@@ -7,7 +7,7 @@ import {
   SupportRequestSchema,
   type SupportPacketResponse,
   type SupportRequest
-} from '../shared/support-schema';
+} from '../shared/support-schema.js';
 
 export const SUPPORT_SYSTEM_PROMPT = `You are the adaptation layer for Work, My Way, a teacher-guided vocational mastery-learning app for students who benefit from additional communication and learning support.
 

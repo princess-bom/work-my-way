@@ -1,4 +1,4 @@
-import { supportHttpResponse } from '../server/http';
+import { supportHttpResponse } from '../server/http.js';
 
 type ApiRequest = {
   method?: string;

@@ -1,4 +1,4 @@
-import type { SupportPacket, SupportPacketResponse, SupportRequest } from './support-schema';
+import type { SupportPacket, SupportPacketResponse, SupportRequest } from './support-schema.js';
 
 export function createSafePacket(request: SupportRequest): SupportPacket {
   if (request.action === 'pause') {

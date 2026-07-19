@@ -1,5 +1,5 @@
-import { createSupportPacket } from './support-service';
-import { SupportRequestSchema } from '../shared/support-schema';
+import { createSupportPacket } from './support-service.js';
+import { SupportRequestSchema } from '../shared/support-schema.js';
 
 export async function supportHttpResponse(body: unknown, env: { apiKey?: string; model?: string } = {}) {
   try {
