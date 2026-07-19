@@ -1,57 +1,65 @@
-import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Check,
-  ChevronRight,
-  CircleUserRound,
-  Clock3,
+  ClipboardCheck,
   FileCheck2,
+  Flag,
   LayoutDashboard,
-  PencilLine,
+  LockKeyhole,
   ShieldCheck,
-  Sparkles,
+  Target,
   UsersRound
 } from 'lucide-react';
-import type { SupportPacketResponse } from '../../shared/support-schema';
-import { syntheticLearners } from '../data/demo';
+import {
+  feedbackForChoice,
+  supportLabel,
+  type CanonicalChoiceId,
+  type MasteryDemoViewModel,
+  type MasterySession,
+  type SupportRequest
+} from './masteryDemo';
 import { BrandMark } from './BrandMark';
-import { ModeBadge } from './ModeBadge';
 
 type TeacherConsoleProps = {
-  packet: SupportPacketResponse | null;
+  demo: MasteryDemoViewModel;
+  supportRequest: SupportRequest | null;
+  selectedChoiceId: CanonicalChoiceId | null;
   confirmed: boolean;
   onConfirm: () => void;
   onBack: () => void;
 };
 
-const illustrativePacket: SupportPacketResponse = {
-  studentMessage: 'Let’s make this one step smaller.',
-  studentChoices: [
-    { label: 'Check the return cart', visualCue: 'A cart holding returned books' },
-    { label: 'Match the shelf label', visualCue: 'A book beside a shelf label' }
-  ],
-  recommendedSupport: 'visual_choices',
-  teacherSignal: 'explicit_visual_request',
-  teacherSummary: 'The learner explicitly asked to see the Library Assistant scene with visual choices.',
-  teacherNextStep: 'Review the scene with two visual choices.',
-  evidence: 'Based only on the learner’s explicit support request in this scene.',
-  safety: { noScoring: true, noDiagnosis: true, teacherReviewRequired: true },
-  generation: {
-    mode: 'illustrative-sample',
-    model: 'gpt-5.6-luna',
-    latencyMs: 0,
-    reason: 'Sample shown until the student requests support.'
-  }
-};
+function SessionTimelineItem({ session }: { session: MasterySession }) {
+  return (
+    <li className="timeline-item">
+      <span className="timeline-marker"><Check size={14} strokeWidth={3} /></span>
+      <article>
+        <div className="timeline-heading">
+          <span>{session.label}</span>
+          <small>{session.dateLabel}</small>
+        </div>
+        <h3>{session.activity}</h3>
+        <dl>
+          <div><dt>Support level</dt><dd>{session.supportLevel}</dd></div>
+          <div><dt>Mastery evidence</dt><dd>{session.evidence}</dd></div>
+        </dl>
+      </article>
+    </li>
+  );
+}
 
-export function TeacherConsole({ packet, confirmed, onConfirm, onBack }: TeacherConsoleProps) {
-  const activePacket = packet ?? illustrativePacket;
-  const [summary, setSummary] = useState(activePacket.teacherSummary);
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    setSummary(activePacket.teacherSummary);
-  }, [activePacket.teacherSummary]);
+export function TeacherConsole({
+  demo,
+  supportRequest,
+  selectedChoiceId,
+  confirmed,
+  onConfirm,
+  onBack
+}: TeacherConsoleProps) {
+  const selectedChoice = demo.activity.choices.find((choice) => choice.id === selectedChoiceId) ?? null;
+  const currentEvidence = selectedChoice
+    ? feedbackForChoice(selectedChoice)
+    : 'No activity choice has been submitted yet. The current attempt remains in progress.';
 
   return (
     <main className="teacher-shell">
@@ -59,110 +67,102 @@ export function TeacherConsole({ packet, confirmed, onConfirm, onBack }: Teacher
         <BrandMark />
         <nav aria-label="Teacher navigation">
           <button type="button"><LayoutDashboard size={19} /> Overview</button>
-          <button className="active" type="button"><FileCheck2 size={19} /> Review queue <span>3</span></button>
+          <button className="active" type="button"><ClipboardCheck size={19} /> Mastery review <span>1</span></button>
           <button type="button"><UsersRound size={19} /> Learners</button>
         </nav>
         <div className="teacher-profile">
-          <CircleUserRound size={34} />
-          <span><strong>Demo Teacher</strong><small>Educator workspace</small></span>
+          <span className="teacher-avatar">DT</span>
+          <span><strong>Demo Teacher</strong><small>Educator evaluator view</small></span>
         </div>
       </aside>
 
       <section className="teacher-workspace">
+        <div className="evaluator-banner teacher-evaluator-banner" role="note">
+          <strong>Synthetic demonstration</strong>
+          <span>Adult evaluator view · No real learner record, diagnosis, or job suitability score</span>
+        </div>
+
         <header className="teacher-header">
           <button className="back-button" type="button" onClick={onBack}>
-            <ArrowLeft size={17} /> Student experience
+            <ArrowLeft size={17} /> Student activity
           </button>
           <div>
-            <span className="eyebrow">Teacher workspace</span>
-            <h1>Review support drafts</h1>
-            <p>Confirm the facts before anything becomes a learning note.</p>
+            <span className="eyebrow">Mastery evidence</span>
+            <h1>{demo.learner.name} · Learning timeline</h1>
+            <p>Review the synthetic activity evidence and confirm only what is visible in the attempt.</p>
           </div>
         </header>
 
-        <div className="review-layout">
-          <section className="review-queue" aria-label="Synthetic learner review queue">
-            <div className="queue-heading">
-              <h2>Needs review</h2>
-              <span>3</span>
+        <div className="teacher-dashboard">
+          <aside className="learner-summary" aria-label="Synthetic learner summary">
+            <div className="learner-summary-title">
+              <span className="learner-avatar large">{demo.learner.initials}</span>
+              <div><small>Synthetic learner</small><h2>{demo.learner.name}</h2></div>
             </div>
-            <p className="synthetic-label">Synthetic demo records</p>
-            {syntheticLearners.map((learner, index) => (
-              <button className={`learner-row ${learner.active ? 'active' : ''}`} type="button" key={learner.name}>
-                <span className={`avatar tone-${index}`}>{learner.initials}</span>
-                <span className="learner-copy">
-                  <strong>{learner.name}</strong>
-                  <small>{learner.scene}</small>
-                  <small><Clock3 size={12} /> {learner.time}</small>
-                </span>
-                <ChevronRight size={18} />
-              </button>
-            ))}
-          </section>
+            <section>
+              <span><Target size={16} /> My learning goal</span>
+              <p>{demo.learningGoal}</p>
+            </section>
+            <dl className="summary-metrics">
+              <div><dt>Sessions shown</dt><dd>3</dd></div>
+              <div><dt>Current status</dt><dd>{selectedChoice ? 'Attempted' : 'In progress'}</dd></div>
+              <div><dt>Support in session 3</dt><dd>{supportRequest ? supportLabel(supportRequest) : 'None requested yet'}</dd></div>
+            </dl>
+            <div className="safety-boundary">
+              <ShieldCheck size={18} />
+              <p><strong>Evidence boundary</strong>Only actions in this synthetic activity appear here.</p>
+            </div>
+          </aside>
 
-          <section className="review-detail">
-            <div className="review-titlebar">
+          <section className="timeline-panel" aria-labelledby="timeline-title">
+            <div className="timeline-titlebar">
+              <div><span className="eyebrow">Three-session view</span><h2 id="timeline-title">Progress toward the learning goal</h2></div>
+              <span className="attempted-badge">{selectedChoice ? 'Activity attempted' : 'Attempt in progress'}</span>
+            </div>
+
+            <ol className="mastery-timeline">
+              {demo.previousSessions.map((session) => <SessionTimelineItem key={session.id} session={session} />)}
+              <li className="timeline-item is-current">
+                <span className="timeline-marker">3</span>
+                <article>
+                  <div className="timeline-heading"><span>Session 3</span><small>Current attempt</small></div>
+                  <h3>{demo.activity.title} · {demo.activity.prompt}</h3>
+                  <dl>
+                    <div><dt>Support level</dt><dd>{supportLabel(supportRequest)}</dd></div>
+                    <div><dt>Mastery evidence</dt><dd>{currentEvidence}</dd></div>
+                  </dl>
+                  <div className="evidence-facts" aria-label="Evidence safeguards">
+                    <span><Check size={13} /> Activity response only</span>
+                    <span><Check size={13} /> No learner scoring</span>
+                    <span><Check size={13} /> No job-fit judgment</span>
+                  </div>
+                </article>
+              </li>
+              <li className="timeline-item is-future">
+                <span className="timeline-marker"><LockKeyhole size={14} /></span>
+                <article>
+                  <div className="timeline-heading"><span>Future phase</span><small>Locked</small></div>
+                  <h3>{demo.futureStage.title}</h3>
+                  <p>{demo.futureStage.description}. There is no interview interaction in this demo.</p>
+                </article>
+              </li>
+            </ol>
+
+            <footer className="teacher-confirmation">
               <div>
-                <span className="eyebrow">Alex M. · Library Assistant</span>
-                <h2>Adaptive support draft</h2>
+                <span><Flag size={17} /> Teacher-only checkpoint</span>
+                <p>Confirm that this timeline accurately reflects the visible synthetic activity evidence.</p>
               </div>
-              <ModeBadge generation={activePacket.generation} />
-            </div>
-
-            <div className="evidence-strip">
-              <ShieldCheck size={20} />
-              <p><strong>Evidence boundary</strong><br />{activePacket.evidence}</p>
-            </div>
-
-            <div className="teacher-card-grid">
-              <article className="teacher-draft-card">
-                <span className="card-kicker"><Sparkles size={15} /> Student support shown</span>
-                <blockquote>“{activePacket.studentMessage}”</blockquote>
-                <ul>
-                  {activePacket.studentChoices.map((choice) => (
-                    <li key={choice.label}><Check size={14} /> {choice.label}</li>
-                  ))}
-                </ul>
-              </article>
-
-              <article className="teacher-draft-card">
-                <span className="card-kicker"><FileCheck2 size={15} /> Suggested next step</span>
-                <p>{activePacket.teacherNextStep}</p>
-                <div className="safety-list">
-                  <span><Check size={13} /> No scoring</span>
-                  <span><Check size={13} /> No diagnosis</span>
-                  <span><Check size={13} /> Teacher approval</span>
-                </div>
-              </article>
-            </div>
-
-            <label className="summary-field">
-              <span>Draft learning note</span>
-              <textarea
-                readOnly={!editing}
-                value={summary}
-                onChange={(event) => setSummary(event.target.value)}
-              />
-            </label>
-
-            <div className="review-actions">
-              <button className="secondary-action" type="button" onClick={() => setEditing((value) => !value)}>
-                <PencilLine size={17} /> {editing ? 'Finish editing' : 'Edit suggestion'}
-              </button>
               <button
-                className={`primary-action ${confirmed ? 'confirmed' : ''}`}
+                className={confirmed ? 'primary-action confirmed' : 'primary-action'}
                 type="button"
                 onClick={onConfirm}
                 disabled={confirmed}
-                data-testid="confirm-note"
+                data-testid="confirm-evidence"
               >
-                <FileCheck2 size={18} /> {confirmed ? 'Learning note confirmed' : 'Confirm learning note'}
+                <FileCheck2 size={18} /> {confirmed ? 'Evidence confirmed' : 'Confirm visible evidence'}
               </button>
-            </div>
-
-            <p className="teacher-disclaimer">
-              GPT-5.6 drafts support language. The educator decides what is accurate, appropriate, and worth keeping.
-            </p>
+            </footer>
           </section>
         </div>
       </section>

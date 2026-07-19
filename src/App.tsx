@@ -1,31 +1,37 @@
 import { useState } from 'react';
-import { requestSupportPacket } from './api';
 import { BrandMark } from './components/BrandMark';
 import { StudentExperience } from './components/StudentExperience';
 import { TeacherConsole } from './components/TeacherConsole';
-import { libraryScene } from './data/demo';
-import type { SupportAction, SupportPacketResponse } from '../shared/support-schema';
+import {
+  masteryDemo,
+  type CanonicalChoiceId,
+  type SupportRequest
+} from './components/masteryDemo';
 
 type View = 'student' | 'teacher';
 
 export default function App() {
   const [view, setView] = useState<View>('student');
-  const [packet, setPacket] = useState<SupportPacketResponse | null>(null);
-  const [loadingAction, setLoadingAction] = useState<SupportAction | null>(null);
+  const [supportRequest, setSupportRequest] = useState<SupportRequest | null>(null);
+  const [selectedChoiceId, setSelectedChoiceId] = useState<CanonicalChoiceId | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  async function handleSupport(action: SupportAction) {
-    setLoadingAction(action);
+  function handleSupport(request: SupportRequest) {
+    setSupportRequest(request);
     setConfirmed(false);
-    const nextPacket = await requestSupportPacket({ action, scene: libraryScene });
-    setPacket(nextPacket);
-    setLoadingAction(null);
+  }
+
+  function handleChoice(choiceId: CanonicalChoiceId) {
+    setSelectedChoiceId(choiceId);
+    setConfirmed(false);
   }
 
   if (view === 'teacher') {
     return (
       <TeacherConsole
-        packet={packet}
+        demo={masteryDemo}
+        supportRequest={supportRequest}
+        selectedChoiceId={selectedChoiceId}
         confirmed={confirmed}
         onConfirm={() => setConfirmed(true)}
         onBack={() => setView('student')}
@@ -37,14 +43,16 @@ export default function App() {
     <div className="app-frame">
       <header className="app-header">
         <BrandMark />
-        <div className="prototype-note">
-          Build Week prototype · Synthetic data only
+        <div className="prototype-note" role="note">
+          Synthetic demo · Adult evaluators only · No real learner data
         </div>
       </header>
       <StudentExperience
-        packet={packet}
-        loadingAction={loadingAction}
+        demo={masteryDemo}
+        supportRequest={supportRequest}
+        selectedChoiceId={selectedChoiceId}
         onSupport={handleSupport}
+        onSelectChoice={handleChoice}
         onOpenTeacher={() => setView('teacher')}
       />
     </div>
